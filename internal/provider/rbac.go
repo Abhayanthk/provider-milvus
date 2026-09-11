@@ -1,0 +1,25 @@
+package provider
+
+// Run `make manifests` to regenerate config/rbac/role.yaml from these markers.
+// This file contains kubebuilder RBAC markers for controller-gen.
+// See: https://book.kubebuilder.io/reference/markers/rbac
+
+// Base RBAC (required by all providers):
+// +kubebuilder:rbac:groups=core.openeverest.io,resources=instances,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=core.openeverest.io,resources=instances/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=core.openeverest.io,resources=instances/finalizers,verbs=update
+// +kubebuilder:rbac:groups=core.openeverest.io,resources=providers,verbs=get;list;watch
+// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+// The runtime writes the connection details returned by Status() into a Secret.
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+
+// Milvus operator resources.
+// +kubebuilder:rbac:groups=milvus.io,resources=milvuses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=milvus.io,resources=milvuses/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=milvus.io,resources=milvuses/finalizers,verbs=update
+
+// Supporting resources created by the operator and used by the provider
+// while reconciling the instance.
+// +kubebuilder:rbac:groups="",resources=services;configmaps;persistentvolumeclaims;pods,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=get;list;watch;create;update;patch;delete

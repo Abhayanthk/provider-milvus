@@ -1,0 +1,20 @@
+apiVersion: v2
+name: provider-milvus
+description: A Helm chart for deploying the OpenEverest provider-milvus provider
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - openeverest
+  - provider
+  - database
+home: https://github.com/openeverest/provider-milvus
+sources:
+  - https://github.com/openeverest/provider-milvus
+maintainers:
+  - name: OpenEverest Contributors
+dependencies:
+  - name: milvus-operator
+    alias: operator
+    version: "1.3.9"
+    repository: https://zilliztech.github.io/milvus-operator/

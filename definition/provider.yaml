@@ -1,0 +1,27 @@
+# Provider identity and component definitions.
+# Keep this aligned with common.ProviderName and the chart metadata.
+name: milvus
+
+components:
+  standalone:
+    type: milvus
+  proxy:
+    type: milvus
+  mixCoord:
+    type: milvus
+  rootCoord:
+    type: milvus
+  indexCoord:
+    type: milvus
+  dataCoord:
+    type: milvus
+  queryCoord:
+    type: milvus
+  indexNode:
+    type: milvus
+  dataNode:
+    type: milvus
+  queryNode:
+    type: milvus
+  streamingNode:
+    type: milvus

@@ -200,7 +200,12 @@ func TestBuildMilvusSpec_TopologyAndResources(t *testing.T) {
 		assert.Equal(t, "2.5.0", spec.Com.Version)
 		require.NotNil(t, spec.Com.Standalone)
 		assert.Equal(t, ptr.To[int32](2), spec.Com.Standalone.Replicas)
-		// Storage mapping is not easily observable via the API struct in this snapshot, but we can verify no error.
+		require.NotNil(t, spec.Dep)
+		require.NotNil(t, spec.Dep.Storage.InCluster)
+		require.NotNil(t, spec.Dep.Storage.InCluster.Values)
+		persistence, ok := spec.Dep.Storage.InCluster.Values["persistence"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "10Gi", persistence["size"])
 	})
 
 	t.Run("cluster topology configuration", func(t *testing.T) {
@@ -234,6 +239,38 @@ func TestBuildMilvusSpec_TopologyAndResources(t *testing.T) {
 
 		// Defaults to 2.6.11 if not set
 		assert.Equal(t, "2.6.11", spec.Com.Version)
+	})
+
+	t.Run("storage size is propagated in cluster topology", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{
+			Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+			Components: map[string]corev1alpha1.ComponentSpec{
+				common.ComponentDataNode: {
+					Storage: &corev1alpha1.Storage{
+						Size: resource.MustParse("50Gi"),
+					},
+				},
+			},
+		})
+		spec, err := BuildMilvusSpec(c)
+		require.NoError(t, err)
+		persistence, ok := spec.Dep.Storage.InCluster.Values["persistence"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "50Gi", persistence["size"])
+	})
+
+	t.Run("invalid configuration returns error", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{
+			Topology: &corev1alpha1.TopologySpec{Type: "standalone"},
+			Components: map[string]corev1alpha1.ComponentSpec{
+				common.ComponentStandalone: {
+					Parameters: configParams(t, "invalid: yaml: ["),
+				},
+			},
+		})
+		_, err := BuildMilvusSpec(c)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid configuration")
 	})
 }
 

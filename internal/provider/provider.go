@@ -281,47 +281,7 @@ func (p *Provider) Validate(c *controller.Context) error {
 	l := log.FromContext(c.Context())
 	l.Info("Validating instance", "name", c.Name())
 
-	instance := c.Instance()
-	topologyType := "standalone"
-	if instance.Spec.Topology != nil && instance.Spec.Topology.Type != "" {
-		topologyType = normalizeTopologyName(instance.Spec.Topology.Type)
-	}
-	if topologyType != "standalone" && topologyType != "cluster" {
-		requested := ""
-		if instance.Spec.Topology != nil {
-			requested = instance.Spec.Topology.Type
-		}
-		return fmt.Errorf("unsupported topology %q; expected standalone or cluster", requested)
-	}
-
-	allowedComponents := []string{common.ComponentStandalone}
-	if topologyType == "cluster" {
-		allowedComponents = []string{
-			common.ComponentProxy,
-			common.ComponentRootCoord,
-			common.ComponentIndexCoord,
-			common.ComponentDataCoord,
-			common.ComponentQueryCoord,
-			common.ComponentIndexNode,
-			common.ComponentDataNode,
-			common.ComponentQueryNode,
-		}
-	}
-	for _, componentName := range allowedComponents {
-		component, ok := instance.Spec.Components[componentName]
-		if !ok {
-			continue
-		}
-		if component.Replicas != nil && *component.Replicas < 1 {
-			return fmt.Errorf("component %q replicas must be >= 1", componentName)
-		}
-	}
-
-	if _, err := milvusEngineConfig(c); err != nil {
-		return err
-	}
-
-	return nil
+	return validateInstance(c)
 }
 
 // Sync ensures all required resources exist and are configured correctly.

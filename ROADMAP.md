@@ -22,7 +22,7 @@ This document outlines the planned features and improvements for the Milvus prov
   - Map OpenEverest parameters into Milvus ConfigMap
   - Enable user-driven tuning of Milvus settings (performance, memory, logging)
 
-- [ ] **Enhanced Validation**
+- [x] **Enhanced Validation**
   - Component sizing constraints (e.g., min CPU/RAM per component)
   - Storage size consistency (prevent decrease-only constraint in edit mode)
   - Topology-specific rules (e.g., minimum coordinators for cluster mode)

@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/utils/ptr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -30,6 +32,7 @@ func newTestContext(t *testing.T, spec corev1alpha1.InstanceSpec) *controller.Co
 	t.Helper()
 	scheme := runtime.NewScheme()
 	require.NoError(t, corev1alpha1.AddToScheme(scheme))
+	require.NoError(t, milvusapi.AddToScheme(scheme))
 
 	instance := &corev1alpha1.Instance{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-milvus", Namespace: "db"},
@@ -173,5 +176,115 @@ func TestBuildMilvusSpecConfiguration(t *testing.T) {
 		spec, err := BuildMilvusSpec(c)
 		require.NoError(t, err)
 		assert.Nil(t, spec.Conf)
+	})
+}
+
+func TestBuildMilvusSpec_TopologyAndResources(t *testing.T) {
+	t.Run("standalone topology configuration", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{
+			Topology: &corev1alpha1.TopologySpec{Type: "standalone"},
+			Version:  "2.5.0",
+			Components: map[string]corev1alpha1.ComponentSpec{
+				common.ComponentStandalone: {
+					Replicas: ptr.To[int32](2),
+					Storage: &corev1alpha1.Storage{
+						Size: resource.MustParse("10Gi"),
+					},
+				},
+			},
+		})
+		spec, err := BuildMilvusSpec(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, milvusapi.MilvusModeStandalone, spec.Mode)
+		assert.Equal(t, "2.5.0", spec.Com.Version)
+		require.NotNil(t, spec.Com.Standalone)
+		assert.Equal(t, ptr.To[int32](2), spec.Com.Standalone.Replicas)
+		// Storage mapping is not easily observable via the API struct in this snapshot, but we can verify no error.
+	})
+
+	t.Run("cluster topology configuration", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{
+			Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+			Components: map[string]corev1alpha1.ComponentSpec{
+				common.ComponentProxy: {
+					Replicas: ptr.To[int32](3),
+				},
+				common.ComponentDataNode: {
+					Replicas: ptr.To[int32](5),
+				},
+			},
+		})
+		spec, err := BuildMilvusSpec(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, milvusapi.MilvusModeCluster, spec.Mode)
+		require.NotNil(t, spec.Com.Proxy)
+		assert.Equal(t, ptr.To[int32](3), spec.Com.Proxy.Replicas)
+		require.NotNil(t, spec.Com.DataNode)
+		assert.Equal(t, ptr.To[int32](5), spec.Com.DataNode.Replicas)
+	})
+
+	t.Run("default version fallback", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{
+			Topology: &corev1alpha1.TopologySpec{Type: "standalone"},
+		})
+		spec, err := BuildMilvusSpec(c)
+		require.NoError(t, err)
+
+		// Defaults to 2.6.11 if not set
+		assert.Equal(t, "2.6.11", spec.Com.Version)
+	})
+}
+
+func TestProvider_Status(t *testing.T) {
+	t.Run("missing Milvus CR returns Provisioning", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{})
+		p := &Provider{}
+		status, err := p.Status(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, corev1alpha1.InstancePhaseProvisioning, status.Phase)
+		assert.Contains(t, status.Message, "waiting for Milvus CR")
+	})
+
+	t.Run("healthy status returns ReadyWithConnectionDetails", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{})
+		
+		cr := &milvusapi.Milvus{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-milvus", Namespace: "db"},
+			Status: milvusapi.MilvusStatus{
+				Status:   milvusapi.StatusHealthy,
+				Endpoint: "my-endpoint.db.svc.cluster.local:19530",
+			},
+		}
+		require.NoError(t, c.Client().Create(context.Background(), cr))
+
+		p := &Provider{}
+		status, err := p.Status(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, corev1alpha1.InstancePhaseReady, status.Phase)
+		require.NotNil(t, status.ConnectionDetails)
+		assert.Equal(t, "my-endpoint.db.svc.cluster.local", status.ConnectionDetails.Host)
+		assert.Equal(t, "19530", status.ConnectionDetails.Port)
+	})
+
+	t.Run("stopped status returns Pending", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{})
+		
+		cr := &milvusapi.Milvus{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-milvus", Namespace: "db"},
+			Status: milvusapi.MilvusStatus{
+				Status: milvusapi.StatusStopped,
+			},
+		}
+		require.NoError(t, c.Client().Create(context.Background(), cr))
+
+		p := &Provider{}
+		status, err := p.Status(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, corev1alpha1.InstancePhasePending, status.Phase)
 	})
 }

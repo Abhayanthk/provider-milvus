@@ -215,8 +215,28 @@ ui:
       componentsOrder:
         - replicas
         - resources
+    advanced:
+      label: "Advanced configuration"
+      description: "Configure advanced Milvus engine settings shared across all components."
+      components:
+        configuration:
+          uiType: text
+          path: spec.components.proxy.parameters.configuration
+          fieldParams:
+            label: "Engine configuration"
+            placeholder: |2
+              proxy:
+                maxNameLength: 255
+              queryNode:
+                gracefulTime: 5000
+            multiline: true
+            minRows: 3
+            maxRows: 8
+      componentsOrder:
+        - configuration
   sectionsOrder:
     - basicInfo
     - dataNodes
     - proxy
     - queryNodes
+    - advanced

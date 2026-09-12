@@ -114,6 +114,9 @@ type MilvusSpec struct {
 	Mode MilvusMode          `json:"mode,omitempty"`
 	Com  MilvusComponents    `json:"components,omitempty"`
 	Dep  *MilvusDependencies `json:"dependencies,omitempty"`
+	// Conf is the Milvus engine configuration, deep-merged into the generated
+	// Milvus config file by the operator (maps to the CRD's spec.config).
+	Conf Values `json:"config,omitempty"`
 }
 
 type Values map[string]any

@@ -2,15 +2,18 @@ package provider
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/yaml"
 
 	corev1alpha1 "github.com/openeverest/openeverest/v2/api/core/v1alpha1"
 	"github.com/openeverest/openeverest/v2/provider-runtime/controller"
+	"github.com/openeverest/provider-milvus/definition/components"
 	"github.com/openeverest/provider-milvus/internal/common"
 	"github.com/openeverest/provider-milvus/internal/milvusapi"
 )
@@ -114,6 +117,50 @@ func setDependencyStorageSize(spec *milvusapi.MilvusSpec, size string) {
 	}
 }
 
+// milvusEngineConfig collects the `configuration` YAML from every component's
+// parameters and deep-merges it into a single Values map. Milvus uses one shared
+// engine config (spec.config), so configuration provided on any component is
+// merged; components are processed in sorted name order for deterministic output.
+func milvusEngineConfig(c *controller.Context) (milvusapi.Values, error) {
+	instanceComponents := c.Instance().Spec.Components
+	names := make([]string, 0, len(instanceComponents))
+	for name := range instanceComponents {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	merged := milvusapi.Values{}
+	for _, name := range names {
+		var params components.MilvusParameters
+		if !c.TryDecodeComponentParameters(instanceComponents[name], &params) || params.Configuration == "" {
+			continue
+		}
+		parsed := map[string]any{}
+		if err := yaml.Unmarshal([]byte(params.Configuration), &parsed); err != nil {
+			return nil, fmt.Errorf("component %q has invalid configuration: %w", name, err)
+		}
+		deepMergeValues(merged, parsed)
+	}
+	if len(merged) == 0 {
+		return nil, nil
+	}
+	return merged, nil
+}
+
+// deepMergeValues recursively merges src into dst. Nested maps are merged;
+// any non-map value in src overrides the corresponding key in dst.
+func deepMergeValues(dst, src map[string]any) {
+	for key, srcVal := range src {
+		srcMap, srcIsMap := srcVal.(map[string]any)
+		dstMap, dstIsMap := dst[key].(map[string]any)
+		if srcIsMap && dstIsMap {
+			deepMergeValues(dstMap, srcMap)
+			continue
+		}
+		dst[key] = srcVal
+	}
+}
+
 func resolveMilvusImage(c *controller.Context, componentName, version string) string {
 	providerSpec, err := c.ProviderSpec()
 	if err != nil || providerSpec == nil {
@@ -168,6 +215,12 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 			},
 		},
 	}
+
+	engineConfig, err := milvusEngineConfig(c)
+	if err != nil {
+		return milvusapi.MilvusSpec{}, err
+	}
+	spec.Conf = engineConfig
 
 	if topologyType == "standalone" {
 		spec.Com.Standalone = &milvusapi.MilvusStandalone{
@@ -262,6 +315,10 @@ func (p *Provider) Validate(c *controller.Context) error {
 		if component.Replicas != nil && *component.Replicas < 1 {
 			return fmt.Errorf("component %q replicas must be >= 1", componentName)
 		}
+	}
+
+	if _, err := milvusEngineConfig(c); err != nil {
+		return err
 	}
 
 	return nil

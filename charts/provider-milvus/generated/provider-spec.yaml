@@ -11,44 +11,194 @@ spec:
           version: 2.6.10
   components:
     dataCoord:
+      parametersSchema:
+        openAPIV3Schema:
+          properties:
+            configuration:
+              type: string
+          type: object
       type: milvus
     dataNode:
+      parametersSchema:
+        openAPIV3Schema:
+          properties:
+            configuration:
+              type: string
+          type: object
       type: milvus
     indexCoord:
+      parametersSchema:
+        openAPIV3Schema:
+          properties:
+            configuration:
+              type: string
+          type: object
       type: milvus
     indexNode:
+      parametersSchema:
+        openAPIV3Schema:
+          properties:
+            configuration:
+              type: string
+          type: object
       type: milvus
     mixCoord:
+      parametersSchema:
+        openAPIV3Schema:
+          properties:
+            configuration:
+              type: string
+          type: object
       type: milvus
     proxy:
+      parametersSchema:
+        openAPIV3Schema:
+          properties:
+            configuration:
+              type: string
+          type: object
       type: milvus
     queryCoord:
+      parametersSchema:
+        openAPIV3Schema:
+          properties:
+            configuration:
+              type: string
+          type: object
       type: milvus
     queryNode:
+      parametersSchema:
+        openAPIV3Schema:
+          properties:
+            configuration:
+              type: string
+          type: object
       type: milvus
     rootCoord:
+      parametersSchema:
+        openAPIV3Schema:
+          properties:
+            configuration:
+              type: string
+          type: object
       type: milvus
     standalone:
+      parametersSchema:
+        openAPIV3Schema:
+          properties:
+            configuration:
+              type: string
+          type: object
       type: milvus
     streamingNode:
+      parametersSchema:
+        openAPIV3Schema:
+          properties:
+            configuration:
+              type: string
+          type: object
       type: milvus
+  release:
+    version: 0.1.0
   topologies:
     cluster:
       components:
-        dataCoord: {}
-        dataNode: {}
-        indexCoord: {}
-        indexNode: {}
-        proxy: {}
-        queryCoord: {}
-        queryNode: {}
-        rootCoord: {}
+        dataCoord:
+          supportedFields:
+            openAPIV3Schema:
+              properties:
+                replicas:
+                  minimum: 1
+                resources: {}
+        dataNode:
+          supportedFields:
+            openAPIV3Schema:
+              properties:
+                replicas:
+                  minimum: 1
+                resources: {}
+                storage: {}
+              required:
+                - storage
+        indexCoord:
+          supportedFields:
+            openAPIV3Schema:
+              properties:
+                replicas:
+                  minimum: 1
+                resources: {}
+        indexNode:
+          supportedFields:
+            openAPIV3Schema:
+              properties:
+                replicas:
+                  minimum: 1
+                resources: {}
+        proxy:
+          supportedFields:
+            openAPIV3Schema:
+              properties:
+                replicas:
+                  minimum: 1
+                resources: {}
+        queryCoord:
+          supportedFields:
+            openAPIV3Schema:
+              properties:
+                replicas:
+                  minimum: 1
+                resources: {}
+        queryNode:
+          supportedFields:
+            openAPIV3Schema:
+              properties:
+                replicas:
+                  minimum: 1
+                resources: {}
+                storage: {}
+              required:
+                - storage
+        rootCoord:
+          supportedFields:
+            openAPIV3Schema:
+              properties:
+                replicas:
+                  minimum: 1
+                resources: {}
     standalone:
       components:
-        standalone: {}
+        standalone:
+          supportedFields:
+            openAPIV3Schema:
+              properties:
+                replicas:
+                  minimum: 1
+                resources: {}
+                storage: {}
+              required:
+                - storage
   uiSchema:
     cluster:
       sections:
+        advanced:
+          components:
+            configuration:
+              fieldParams:
+                label: Engine configuration
+                maxRows: 8
+                minRows: 3
+                multiline: true
+                placeholder: |
+                  proxy:
+                    maxNameLength: 255
+                  queryNode:
+                    gracefulTime: 5000
+              path: spec.components.proxy.parameters.configuration
+              uiType: text
+          componentsOrder:
+            - configuration
+          description: Configure advanced Milvus engine settings shared across all components.
+          label: Advanced configuration
         basicInfo:
           components:
             version:
@@ -206,8 +356,28 @@ spec:
         - dataNodes
         - proxy
         - queryNodes
+        - advanced
     standalone:
       sections:
+        advanced:
+          components:
+            configuration:
+              fieldParams:
+                label: Engine configuration
+                maxRows: 8
+                minRows: 3
+                multiline: true
+                placeholder: |
+                  log:
+                    level: info
+                  proxy:
+                    maxNameLength: 255
+              path: spec.components.standalone.parameters.configuration
+              uiType: text
+          componentsOrder:
+            - configuration
+          description: Configure advanced Milvus engine settings.
+          label: Advanced configuration
         basicInfo:
           components:
             version:
@@ -268,6 +438,7 @@ spec:
       sectionsOrder:
         - basicInfo
         - resources
+        - advanced
   versions:
     - components:
         dataCoord: 2.6.11

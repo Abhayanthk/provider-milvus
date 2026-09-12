@@ -69,6 +69,26 @@ ui:
           validation:
             min: 0.5
             required: true
+    advanced:
+      label: "Advanced configuration"
+      description: "Configure advanced Milvus engine settings."
+      components:
+        configuration:
+          uiType: text
+          path: spec.components.standalone.parameters.configuration
+          fieldParams:
+            label: "Engine configuration"
+            placeholder: |2
+              log:
+                level: info
+              proxy:
+                maxNameLength: 255
+            multiline: true
+            minRows: 3
+            maxRows: 8
+      componentsOrder:
+        - configuration
   sectionsOrder:
     - basicInfo
     - resources
+    - advanced

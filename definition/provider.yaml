@@ -5,23 +5,34 @@ name: milvus
 components:
   standalone:
     type: milvus
+    parametersSchema: MilvusParameters
   proxy:
     type: milvus
+    parametersSchema: MilvusParameters
   mixCoord:
     type: milvus
+    parametersSchema: MilvusParameters
   rootCoord:
     type: milvus
+    parametersSchema: MilvusParameters
   indexCoord:
     type: milvus
+    parametersSchema: MilvusParameters
   dataCoord:
     type: milvus
+    parametersSchema: MilvusParameters
   queryCoord:
     type: milvus
+    parametersSchema: MilvusParameters
   indexNode:
     type: milvus
+    parametersSchema: MilvusParameters
   dataNode:
     type: milvus
+    parametersSchema: MilvusParameters
   queryNode:
     type: milvus
+    parametersSchema: MilvusParameters
   streamingNode:
     type: milvus
+    parametersSchema: MilvusParameters

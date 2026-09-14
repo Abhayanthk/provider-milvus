@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/utils/ptr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	corev1alpha1 "github.com/openeverest/openeverest/v2/api/core/v1alpha1"
@@ -274,6 +274,16 @@ func TestBuildMilvusSpec_TopologyAndResources(t *testing.T) {
 	})
 }
 
+func newMilvusCR(status milvusapi.MilvusHealthStatus, endpoint string) *milvusapi.Milvus {
+	return &milvusapi.Milvus{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-milvus", Namespace: "db"},
+		Status: milvusapi.MilvusStatus{
+			Status:   status,
+			Endpoint: endpoint,
+		},
+	}
+}
+
 func TestProvider_Status(t *testing.T) {
 	t.Run("missing Milvus CR returns Provisioning", func(t *testing.T) {
 		c := newTestContext(t, corev1alpha1.InstanceSpec{})
@@ -287,14 +297,24 @@ func TestProvider_Status(t *testing.T) {
 
 	t.Run("healthy status returns ReadyWithConnectionDetails", func(t *testing.T) {
 		c := newTestContext(t, corev1alpha1.InstanceSpec{})
-		
-		cr := &milvusapi.Milvus{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-milvus", Namespace: "db"},
-			Status: milvusapi.MilvusStatus{
-				Status:   milvusapi.StatusHealthy,
-				Endpoint: "my-endpoint.db.svc.cluster.local:19530",
-			},
-		}
+
+		cr := newMilvusCR(milvusapi.StatusHealthy, "my-endpoint.db.svc.cluster.local:19530")
+		require.NoError(t, c.Client().Create(context.Background(), cr))
+
+		p := &Provider{}
+		status, err := p.Status(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, corev1alpha1.InstancePhaseReady, status.Phase)
+		require.NotNil(t, status.ConnectionDetails)
+		assert.Equal(t, "my-endpoint.db.svc.cluster.local", status.ConnectionDetails.Host)
+		assert.Equal(t, "19530", status.ConnectionDetails.Port)
+	})
+
+	t.Run("healthy status without port defaults to 19530", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{})
+
+		cr := newMilvusCR(milvusapi.StatusHealthy, "my-endpoint.db.svc.cluster.local")
 		require.NoError(t, c.Client().Create(context.Background(), cr))
 
 		p := &Provider{}
@@ -309,13 +329,8 @@ func TestProvider_Status(t *testing.T) {
 
 	t.Run("stopped status returns Pending", func(t *testing.T) {
 		c := newTestContext(t, corev1alpha1.InstanceSpec{})
-		
-		cr := &milvusapi.Milvus{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-milvus", Namespace: "db"},
-			Status: milvusapi.MilvusStatus{
-				Status: milvusapi.StatusStopped,
-			},
-		}
+
+		cr := newMilvusCR(milvusapi.StatusStopped, "")
 		require.NoError(t, c.Client().Create(context.Background(), cr))
 
 		p := &Provider{}

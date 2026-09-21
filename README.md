@@ -127,9 +127,9 @@ spec:
   providerRef:
     name: milvus
   components:
-    engine:
-      type: 
-      replicas: 3
+    standalone:
+      type: milvus
+      replicas: 1
       resources:
         requests:
           cpu: 500m

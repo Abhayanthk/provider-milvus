@@ -1,5 +1,5 @@
-# Example Instance CR for the provider-milvus provider.
-# Apply this to your cluster to create a database instance.
+# Example standalone Milvus Instance for the provider-milvus provider.
+# Apply this to your cluster to create a Milvus instance.
 #
 # Prerequisites:
 #   1. OpenEverest CRDs installed
@@ -9,17 +9,26 @@
 apiVersion: core.openeverest.io/v1alpha1
 kind: Instance
 metadata:
-  name: example-instance
+  name: milvus-standalone
 spec:
   providerRef:
     name: milvus
+  # Optional: pin the Milvus version bundle. Omit to use the provider default.
+  version: "2.6.11"
+  topology:
+    type: standalone
   components:
-    engine:
-      type: 
+    standalone:
+      type: milvus
       replicas: 1
       resources:
         limits:
           cpu: "1"
-          memory: 2G
+          memory: 4Gi
       storage:
         size: 10Gi
+      # Optional: Milvus engine configuration, merged into spec.config.
+      parameters:
+        configuration: |
+          log:
+            level: info

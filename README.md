@@ -52,7 +52,7 @@ manages pods directly — all lifecycle work is delegated to the operator.
 
 | provider-milvus | OpenEverest | Operator | Kubernetes |
 |---|---|---|---|
-| `0.1.x` | `>= 2.0.0` | `x.y.z` | `1.30` – `1.34` |
+| `0.1.x` | `>= 2.0.0` | `1.3.9` | `1.30` – `1.34` |
 
 ## Capabilities
 
@@ -65,11 +65,13 @@ provider itself is covered under [Installation](#installation).
 
 | Capability | Status | Notes |
 |---|---|---|
-| Provisioning | ❌ | |
-| Horizontal scaling | ❌ | |
-| Vertical scaling (CPU / memory) | ❌ | |
-| Version upgrades | ❌ | |
-| Custom configuration | ❌ | |
+| Provisioning | ✅ | Standalone and cluster topologies |
+| Horizontal scaling | ✅ | Per-component replica counts |
+| Vertical scaling (CPU / memory) | ✅ | Per-component resource limits |
+| Version upgrades | ✅ | `spec.version`; the operator performs the rolling update |
+| Custom configuration | ✅ | Milvus engine config via component `parameters.configuration` |
+| Authentication | ✅ | A `root` credential is generated and published to the connection Secret |
+| Network exposure | ✅ | ClusterIP, NodePort or LoadBalancer via the component `service` |
 | Monitoring | ❌ | |
 | TLS | ❌ | |
 
@@ -77,7 +79,7 @@ Stateful workloads additionally report:
 
 | Capability | Status | Notes |
 |---|---|---|
-| Persistent storage | ❌ | |
+| Persistent storage | ✅ | Object storage (MinIO) sized via the component `storage` |
 | Storage expansion | ❌ | |
 | Backups (on demand) | ❌ | |
 | Backups (scheduled) | ❌ | |
@@ -122,35 +124,80 @@ Create an instance:
 apiVersion: core.openeverest.io/v1alpha1
 kind: Instance
 metadata:
-  name: my-instance
+  name: milvus-standalone
 spec:
   providerRef:
     name: milvus
+  topology:
+    type: standalone          # optional; standalone is the default
   components:
     standalone:
       type: milvus
       replicas: 1
       resources:
-        requests:
-          cpu: 500m
-          memory: 2G
+        limits:
+          cpu: "1"
+          memory: 4Gi
       storage:
         size: 10Gi
 ```
 
 Component names are defined by this provider — see [definition/provider.yaml](definition/provider.yaml).
-`spec.version` and `spec.topology` are optional; the provider defaults apply.
-More examples live in [examples/](examples/).
+`spec.version` and `spec.topology` are optional; the provider defaults apply. More
+examples (including a full cluster topology) live in [examples/](examples/).
 
-Watch it come up and read the connection details:
+Watch it come up:
 
 ```bash
-kubectl get instance my-instance -w
-kubectl get instance my-instance -o jsonpath='{.status.connection}'
+kubectl get instance milvus-standalone -w
 ```
 
-Credentials, when the technology has any, are in the secret named by
-`.status.connection.credentialsSecretRef`.
+### Connect
+
+Authentication is enabled by default. On first boot the provider generates a
+random password for the built-in `root` user and publishes the connection
+details to the Secret referenced by `.status.connectionSecretRef` (named
+`milvus-standalone-conn`):
+
+```bash
+# host, port, username, password, uri and a ready-to-use root:<password> token
+kubectl get secret milvus-standalone-conn \
+  -o go-template='{{range $k,$v := .data}}{{$k}}={{$v | base64decode}}{{"\n"}}{{end}}'
+```
+
+From your workstation, port-forward the service and connect with pymilvus:
+
+```bash
+kubectl port-forward svc/milvus-standalone-milvus 19530:19530
+```
+
+```python
+from pymilvus import MilvusClient
+
+client = MilvusClient(uri="http://localhost:19530", token="root:<password>")
+client.create_collection("demo", dimension=8)
+```
+
+### Expose it outside the cluster
+
+Set the service type on the client-facing component (`standalone` for standalone,
+`proxy` for cluster). The connection details then report the external address
+automatically:
+
+```yaml
+spec:
+  components:
+    standalone:
+      type: milvus
+      service:
+        serviceType: LoadBalancer   # or NodePort
+      storage:
+        size: 10Gi
+```
+
+- **ClusterIP** (default) — reachable only inside the cluster.
+- **LoadBalancer** — the connection host is the load balancer address once assigned.
+- **NodePort** — the connection host is a node address paired with the assigned node port.
 
 ## Topologies
 
@@ -160,7 +207,8 @@ Credentials, when the technology has any, are in the secret named by
 <!-- BEGIN GENERATED: topologies -->
 | Topology | Default | Description |
 |---|---|---|
-| `` | ✅ | |
+| `standalone` | ✅ | Single-process Milvus; smallest footprint, ideal for experimentation |
+| `cluster` | | Independently scalable components with Pulsar as the message stream |
 <!-- END GENERATED: topologies -->
 
 ## Versions
@@ -168,7 +216,8 @@ Credentials, when the technology has any, are in the secret named by
 <!-- BEGIN GENERATED: versions -->
 | Version bundle | Default |  |
 |---|---|---|
-| | | |
+| `2.6.11` | ✅ | |
+| `2.6.10` | | |
 <!-- END GENERATED: versions -->
 
 Source of truth: [definition/versions.yaml](definition/versions.yaml).

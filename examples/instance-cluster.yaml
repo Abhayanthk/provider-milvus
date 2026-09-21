@@ -1,0 +1,61 @@
+# Example cluster Milvus Instance for the provider-milvus provider.
+# Cluster mode splits Milvus into independently scalable components and uses
+# Pulsar as its message stream (deployed by the operator). It is heavier than
+# standalone — prefer standalone for experimentation.
+#
+# Prerequisites:
+#   1. OpenEverest CRDs installed
+#   2. Provider CR applied (provider.yaml)
+#   3. Operator running
+#   4. Provider controller running
+apiVersion: core.openeverest.io/v1alpha1
+kind: Instance
+metadata:
+  name: milvus-cluster
+spec:
+  providerRef:
+    name: milvus
+  version: "2.6.11"
+  topology:
+    type: cluster
+  components:
+    proxy:
+      type: milvus
+      replicas: 1
+      resources:
+        limits:
+          cpu: "1"
+          memory: 2Gi
+    rootCoord:
+      type: milvus
+      replicas: 1
+    indexCoord:
+      type: milvus
+      replicas: 1
+    dataCoord:
+      type: milvus
+      replicas: 1
+    queryCoord:
+      type: milvus
+      replicas: 1
+    indexNode:
+      type: milvus
+      replicas: 1
+    dataNode:
+      type: milvus
+      replicas: 1
+      resources:
+        limits:
+          cpu: "1"
+          memory: 4Gi
+      storage:
+        size: 20Gi
+    queryNode:
+      type: milvus
+      replicas: 1
+      resources:
+        limits:
+          cpu: "1"
+          memory: 4Gi
+      storage:
+        size: 20Gi

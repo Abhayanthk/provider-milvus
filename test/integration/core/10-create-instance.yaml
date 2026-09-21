@@ -1,5 +1,4 @@
 # Sample Instance for the create-instance step.
-# TODO: adjust the components to match definition/provider.yaml.
 apiVersion: core.openeverest.io/v1alpha1
 kind: Instance
 metadata:
@@ -7,9 +6,11 @@ metadata:
 spec:
   providerRef:
     name: milvus
+  topology:
+    type: standalone
   components:
-    engine:
-      type: 
+    standalone:
+      type: milvus
       replicas: 1
       resources:
         limits:

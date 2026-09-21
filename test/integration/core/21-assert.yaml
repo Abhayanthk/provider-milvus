@@ -1,0 +1,12 @@
+# The provider must translate LoadBalancer exposure and annotations onto the
+# Milvus service component.
+apiVersion: milvus.io/v1beta1
+kind: Milvus
+metadata:
+  name: test-instance
+spec:
+  components:
+    standalone:
+      serviceType: LoadBalancer
+      serviceAnnotations:
+        test-annotation: "test-value"

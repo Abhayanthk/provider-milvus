@@ -1,0 +1,15 @@
+# Switch the standalone instance to LoadBalancer exposure with annotations.
+apiVersion: core.openeverest.io/v1alpha1
+kind: Instance
+metadata:
+  name: test-instance
+spec:
+  providerRef:
+    name: milvus
+  components:
+    standalone:
+      type: milvus
+      service:
+        serviceType: LoadBalancer
+        annotations:
+          test-annotation: "test-value"

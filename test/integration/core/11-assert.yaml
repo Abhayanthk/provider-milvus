@@ -1,9 +1,25 @@
-# Expected outcome of the instance-ready step: once the operator-native CR
-# reports ready, the provider's Status() must surface phase Running on the
-# Instance.
+# Expected outcome of the instance-ready step: once the Milvus CR reports
+# Healthy, the provider's Status() must surface phase Ready on the Instance and
+# publish connection details (including the generated root credential and a
+# ready-to-use token) to the connection Secret.
 apiVersion: core.openeverest.io/v1alpha1
 kind: Instance
 metadata:
   name: test-instance
 status:
-  phase: Running
+  phase: Ready
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-instance-conn
+type: Opaque
+data:
+  type: bWlsdnVz
+  provider: bWlsdnVz
+  port: MTk1MzA=
+  username: cm9vdA==
+  (password != null): true
+  (token != null): true
+  (host != null): true
+  (uri != null): true

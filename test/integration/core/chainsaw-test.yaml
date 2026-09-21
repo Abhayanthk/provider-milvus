@@ -1,28 +1,24 @@
 ---
-# Core lifecycle suite — skeleton.
+# Core lifecycle suite for the Milvus provider.
 #
-# Ships with a single step that verifies the provider deployment is running.
-# The commented-out steps below show the recommended lifecycle test pattern;
-# enable and adapt them once your provider implements Sync/Status.
-#
-# For a complete example, see:
-# https://github.com/openeverest/provider-percona-server-mongodb/tree/main/test/integration/core
+# The Milvus operator is scaled to 0 in CI (see the deploy-provider-ci Make
+# target), so these steps test the provider's translation and status logic:
+# apply an Instance, assert the Milvus CR the provider produces, simulate the
+# operator marking the CR Healthy, and assert the Instance reaches Ready with
+# connection details.
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
 metadata:
   name: core
 spec:
   description: |
-    Lifecycle of an Instance: create, simulate operator readiness, update,
-    and delete.
+    Lifecycle of a standalone Instance: create, authenticate, expose via
+    NodePort and LoadBalancer, and delete.
 
   # Collect diagnostics when a step fails.
   catch:
     - script:
-        content: kubectl -n $NAMESPACE get instance -o yaml
-    # TODO: also dump your operator-native CR, e.g.:
-    # - script:
-    #     content: kubectl -n $NAMESPACE get <operator-resource> -o yaml
+        content: kubectl -n $NAMESPACE get instance,milvuses.milvus.io -o yaml
     - podLogs:
         namespace: provider-system
         selector: app.kubernetes.io/name=provider-milvus
@@ -34,43 +30,69 @@ spec:
         - assert:
             file: 00-assert.yaml
 
-    # TODO: enable once your provider implements Sync().
-    # Applies an Instance and asserts the provider creates the
-    # operator-native CR with the expected spec.
-    # - name: create-instance
-    #   try:
-    #     - apply:
-    #         file: 10-create-instance.yaml
-    #     - assert:
-    #         file: 10-assert.yaml
+    - name: create-instance
+      try:
+        - apply:
+            file: 10-create-instance.yaml
+        - assert:
+            file: 10-assert.yaml
 
-    # TODO: enable once your provider implements Status().
-    # The operator is scaled to 0 in integration tests, so simulate it
-    # marking the cluster ready by patching the operator-native CR status,
-    # then assert the Instance reports phase Running.
-    # - name: instance-ready
-    #   try:
-    #     - script:
-    #         content: |
-    #           kubectl patch <operator-resource>/test-instance --subresource status -n $NAMESPACE \
-    #             -p '{"status":{"state":"ready"}}' --type=merge
-    #     - assert:
-    #         file: 11-assert.yaml
+    # Simulate the Milvus operator (scaled to 0) marking the CR Healthy. The
+    # provider then surfaces phase Ready and writes the connection Secret.
+    - name: instance-ready
+      try:
+        - script:
+            content: |
+              kubectl patch milvuses.milvus.io/test-instance --subresource status -n $NAMESPACE \
+                -p '{"status":{"status":"Healthy"}}' --type=merge
+        - assert:
+            file: 11-assert.yaml
 
-    # TODO: enable once your provider implements Cleanup().
-    # Deletes the Instance and waits for the provider to tear everything
-    # down. With the operator scaled to 0, you may need to clear finalizers
-    # on the operator-native CR (nothing processes them):
-    # - name: delete-instance
-    #   try:
-    #     - script:
-    #         content: |
-    #           kubectl -n $NAMESPACE delete instance/test-instance --wait=false
-    #           kubectl -n $NAMESPACE patch <operator-resource>/test-instance \
-    #             -p '{"metadata":{"finalizers":null}}' --type merge
-    #     - wait:
-    #         apiVersion: core.openeverest.io/v1alpha1
-    #         kind: Instance
-    #         name: test-instance
-    #         for:
-    #           deletion: {}
+    - name: expose-node-port
+      try:
+        - apply:
+            file: 20-expose-node-port.yaml
+        - assert:
+            file: 20-assert.yaml
+
+    - name: expose-load-balancer
+      try:
+        - apply:
+            file: 21-expose-load-balancer.yaml
+        - assert:
+            file: 21-assert.yaml
+
+    # Deleting the Instance runs the provider's Cleanup and removes its
+    # finalizer; the owned Milvus CR and Secrets are garbage-collected. The
+    # operator is scaled to 0, so clear any Milvus finalizers manually.
+    - name: delete-instance
+      try:
+        - script:
+            content: |
+              kubectl -n $NAMESPACE delete instance/test-instance --wait=false
+              kubectl -n $NAMESPACE patch milvuses.milvus.io/test-instance \
+                -p '{"metadata":{"finalizers":null}}' --type merge || true
+        - wait:
+            apiVersion: core.openeverest.io/v1alpha1
+            kind: Instance
+            name: test-instance
+            for:
+              deletion: {}
+        - wait:
+            apiVersion: milvus.io/v1beta1
+            kind: Milvus
+            name: test-instance
+            for:
+              deletion: {}
+        - wait:
+            apiVersion: v1
+            kind: Secret
+            name: test-instance-credentials
+            for:
+              deletion: {}
+        - wait:
+            apiVersion: v1
+            kind: Secret
+            name: test-instance-conn
+            for:
+              deletion: {}

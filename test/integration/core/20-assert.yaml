@@ -1,0 +1,9 @@
+# The provider must translate NodePort exposure onto the Milvus service component.
+apiVersion: milvus.io/v1beta1
+kind: Milvus
+metadata:
+  name: test-instance
+spec:
+  components:
+    standalone:
+      serviceType: NodePort

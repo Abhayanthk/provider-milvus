@@ -1,4 +1,4 @@
-# Sample Instance for the create-instance step.
+# Sample standalone Instance for the create-instance step.
 apiVersion: core.openeverest.io/v1alpha1
 kind: Instance
 metadata:

@@ -1,0 +1,13 @@
+# Switch the standalone instance to NodePort exposure.
+apiVersion: core.openeverest.io/v1alpha1
+kind: Instance
+metadata:
+  name: test-instance
+spec:
+  providerRef:
+    name: milvus
+  components:
+    standalone:
+      type: milvus
+      service:
+        serviceType: NodePort

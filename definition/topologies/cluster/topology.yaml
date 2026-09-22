@@ -344,208 +344,220 @@ ui:
           groupType: accordion
           label: Broker
           components:
-            replicas:
-              path: spec.topology.parameters.dependencies.pulsar.broker.replicas
-              uiType: number
-              fieldParams:
-                label: Replicas
-                defaultValue: 1
-              validation:
-                min: 1
-                int: true
-            resources:
+            settings:
               uiType: group
-              groupType: line
               components:
-                cpu:
-                  path: spec.topology.parameters.dependencies.pulsar.broker.resources.requests.cpu
+                replicas:
+                  path: spec.topology.parameters.dependencies.pulsar.broker.replicas
                   uiType: number
                   fieldParams:
-                    label: CPU
-                    defaultValue: 0.2
-                    step: 0.1
+                    label: Replicas
+                    defaultValue: 1
                   validation:
-                    min: 0.1
-                memory:
-                  path: spec.topology.parameters.dependencies.pulsar.broker.resources.requests.memory
-                  uiType: number
-                  fieldParams:
-                    label: RAM
-                    defaultValue: 0.5
-                    step: 0.1
-                    badge: Gi
-                    badgeToApi: true
-                  validation:
-                    min: 0.1
-          componentsOrder:
-            - replicas
-            - resources
+                    min: 1
+                    int: true
+                resources:
+                  uiType: group
+                  groupType: line
+                  components:
+                    cpu:
+                      path: spec.topology.parameters.dependencies.pulsar.broker.resources.requests.cpu
+                      uiType: number
+                      fieldParams:
+                        label: CPU
+                        defaultValue: 0.2
+                        step: 0.1
+                      validation:
+                        min: 0.1
+                    memory:
+                      path: spec.topology.parameters.dependencies.pulsar.broker.resources.requests.memory
+                      uiType: number
+                      fieldParams:
+                        label: RAM
+                        defaultValue: 0.5
+                        step: 0.1
+                        badge: Gi
+                        badgeToApi: true
+                      validation:
+                        min: 0.1
+              componentsOrder:
+                - replicas
+                - resources
         bookkeeper:
           uiType: group
           groupType: accordion
           label: BookKeeper
           components:
-            replicas:
-              path: spec.topology.parameters.dependencies.pulsar.bookkeeper.replicas
-              uiType: number
-              fieldParams:
-                label: Replicas
-                defaultValue: 2
-              validation:
-                min: 1
-                int: true
-            resources:
+            settings:
               uiType: group
-              groupType: line
               components:
-                cpu:
-                  path: spec.topology.parameters.dependencies.pulsar.bookkeeper.resources.requests.cpu
+                replicas:
+                  path: spec.topology.parameters.dependencies.pulsar.bookkeeper.replicas
                   uiType: number
                   fieldParams:
-                    label: CPU
-                    defaultValue: 0.2
-                    step: 0.1
-                  validation:
-                    min: 0.1
-                memory:
-                  path: spec.topology.parameters.dependencies.pulsar.bookkeeper.resources.requests.memory
-                  uiType: number
-                  fieldParams:
-                    label: RAM
-                    defaultValue: 0.5
-                    step: 0.1
-                    badge: Gi
-                    badgeToApi: true
-                  validation:
-                    min: 0.1
-            volumes:
-              uiType: group
-              groupType: line
-              components:
-                journal:
-                  path: spec.topology.parameters.dependencies.pulsar.bookkeeper.journal.size
-                  uiType: number
-                  fieldParams:
-                    label: Journal
-                    defaultValue: 5
-                    badge: Gi
-                    badgeToApi: true
+                    label: Replicas
+                    defaultValue: 2
                   validation:
                     min: 1
                     int: true
-                ledgers:
-                  path: spec.topology.parameters.dependencies.pulsar.bookkeeper.ledgers.size
-                  uiType: number
-                  fieldParams:
-                    label: Ledgers
-                    defaultValue: 10
-                    badge: Gi
-                    badgeToApi: true
-                  validation:
-                    min: 1
-                    int: true
-          componentsOrder:
-            - replicas
-            - resources
-            - volumes
+                resources:
+                  uiType: group
+                  groupType: line
+                  components:
+                    cpu:
+                      path: spec.topology.parameters.dependencies.pulsar.bookkeeper.resources.requests.cpu
+                      uiType: number
+                      fieldParams:
+                        label: CPU
+                        defaultValue: 0.2
+                        step: 0.1
+                      validation:
+                        min: 0.1
+                    memory:
+                      path: spec.topology.parameters.dependencies.pulsar.bookkeeper.resources.requests.memory
+                      uiType: number
+                      fieldParams:
+                        label: RAM
+                        defaultValue: 0.5
+                        step: 0.1
+                        badge: Gi
+                        badgeToApi: true
+                      validation:
+                        min: 0.1
+                volumes:
+                  uiType: group
+                  groupType: line
+                  components:
+                    journal:
+                      path: spec.topology.parameters.dependencies.pulsar.bookkeeper.journal.size
+                      uiType: number
+                      fieldParams:
+                        label: Journal
+                        defaultValue: 5
+                        badge: Gi
+                        badgeToApi: true
+                      validation:
+                        min: 1
+                        int: true
+                    ledgers:
+                      path: spec.topology.parameters.dependencies.pulsar.bookkeeper.ledgers.size
+                      uiType: number
+                      fieldParams:
+                        label: Ledgers
+                        defaultValue: 10
+                        badge: Gi
+                        badgeToApi: true
+                      validation:
+                        min: 1
+                        int: true
+              componentsOrder:
+                - replicas
+                - resources
+                - volumes
         zookeeper:
           uiType: group
           groupType: accordion
           label: ZooKeeper
           components:
-            replicas:
-              path: spec.topology.parameters.dependencies.pulsar.zookeeper.replicas
-              uiType: number
-              fieldParams:
-                label: Replicas
-                defaultValue: 1
-              validation:
-                min: 1
-                int: true
-            resources:
+            settings:
               uiType: group
-              groupType: line
               components:
-                cpu:
-                  path: spec.topology.parameters.dependencies.pulsar.zookeeper.resources.requests.cpu
+                replicas:
+                  path: spec.topology.parameters.dependencies.pulsar.zookeeper.replicas
                   uiType: number
                   fieldParams:
-                    label: CPU
-                    defaultValue: 0.1
-                    step: 0.1
-                  validation:
-                    min: 0.1
-                memory:
-                  path: spec.topology.parameters.dependencies.pulsar.zookeeper.resources.requests.memory
-                  uiType: number
-                  fieldParams:
-                    label: RAM
-                    defaultValue: 0.25
-                    step: 0.1
-                    badge: Gi
-                    badgeToApi: true
-                  validation:
-                    min: 0.1
-            volumes:
-              uiType: group
-              groupType: line
-              components:
-                data:
-                  path: spec.topology.parameters.dependencies.pulsar.zookeeper.data.size
-                  uiType: number
-                  fieldParams:
-                    label: Data
-                    defaultValue: 5
-                    badge: Gi
-                    badgeToApi: true
+                    label: Replicas
+                    defaultValue: 1
                   validation:
                     min: 1
                     int: true
-          componentsOrder:
-            - replicas
-            - resources
-            - volumes
+                resources:
+                  uiType: group
+                  groupType: line
+                  components:
+                    cpu:
+                      path: spec.topology.parameters.dependencies.pulsar.zookeeper.resources.requests.cpu
+                      uiType: number
+                      fieldParams:
+                        label: CPU
+                        defaultValue: 0.1
+                        step: 0.1
+                      validation:
+                        min: 0.1
+                    memory:
+                      path: spec.topology.parameters.dependencies.pulsar.zookeeper.resources.requests.memory
+                      uiType: number
+                      fieldParams:
+                        label: RAM
+                        defaultValue: 0.25
+                        step: 0.1
+                        badge: Gi
+                        badgeToApi: true
+                      validation:
+                        min: 0.1
+                volumes:
+                  uiType: group
+                  groupType: line
+                  components:
+                    data:
+                      path: spec.topology.parameters.dependencies.pulsar.zookeeper.data.size
+                      uiType: number
+                      fieldParams:
+                        label: Data
+                        defaultValue: 5
+                        badge: Gi
+                        badgeToApi: true
+                      validation:
+                        min: 1
+                        int: true
+              componentsOrder:
+                - replicas
+                - resources
+                - volumes
         proxy:
           uiType: group
           groupType: accordion
           label: Proxy
           components:
-            replicas:
-              path: spec.topology.parameters.dependencies.pulsar.proxy.replicas
-              uiType: number
-              fieldParams:
-                label: Replicas
-                defaultValue: 1
-              validation:
-                min: 1
-                int: true
-            resources:
+            settings:
               uiType: group
-              groupType: line
               components:
-                cpu:
-                  path: spec.topology.parameters.dependencies.pulsar.proxy.resources.requests.cpu
+                replicas:
+                  path: spec.topology.parameters.dependencies.pulsar.proxy.replicas
                   uiType: number
                   fieldParams:
-                    label: CPU
-                    defaultValue: 0.1
-                    step: 0.1
+                    label: Replicas
+                    defaultValue: 1
                   validation:
-                    min: 0.1
-                memory:
-                  path: spec.topology.parameters.dependencies.pulsar.proxy.resources.requests.memory
-                  uiType: number
-                  fieldParams:
-                    label: RAM
-                    defaultValue: 0.25
-                    step: 0.1
-                    badge: Gi
-                    badgeToApi: true
-                  validation:
-                    min: 0.1
-          componentsOrder:
-            - replicas
-            - resources
+                    min: 1
+                    int: true
+                resources:
+                  uiType: group
+                  groupType: line
+                  components:
+                    cpu:
+                      path: spec.topology.parameters.dependencies.pulsar.proxy.resources.requests.cpu
+                      uiType: number
+                      fieldParams:
+                        label: CPU
+                        defaultValue: 0.1
+                        step: 0.1
+                      validation:
+                        min: 0.1
+                    memory:
+                      path: spec.topology.parameters.dependencies.pulsar.proxy.resources.requests.memory
+                      uiType: number
+                      fieldParams:
+                        label: RAM
+                        defaultValue: 0.25
+                        step: 0.1
+                        badge: Gi
+                        badgeToApi: true
+                      validation:
+                        min: 0.1
+              componentsOrder:
+                - replicas
+                - resources
       componentsOrder:
         - broker
         - bookkeeper

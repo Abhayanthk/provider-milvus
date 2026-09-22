@@ -124,6 +124,10 @@ func buildStorage(param *dependencies.Storage, persistenceSize string) milvusapi
 	values := milvusapi.Values{
 		"mode":     minioMode(replicas),
 		"replicas": int(replicas),
+		// Docker Hub's minio/minio and minio/mc repos are gated; pull the bundled
+		// MinIO from the public quay.io mirror instead, keeping the operator's tags.
+		"image":   map[string]any{"repository": "quay.io/minio/minio"},
+		"mcImage": map[string]any{"repository": "quay.io/minio/mc"},
 	}
 	if res := resourcesToValues(resources); res != nil {
 		values["resources"] = res

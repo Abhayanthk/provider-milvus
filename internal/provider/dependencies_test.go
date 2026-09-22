@@ -141,6 +141,82 @@ func TestBuildDependenciesUserOverrides(t *testing.T) {
 	assert.Equal(t, map[string]any{"cpu": "200m", "memory": "512Mi"}, brokerRes["requests"])
 }
 
+func TestBuildDependenciesPersistenceDefaults(t *testing.T) {
+	c := newTestContext(t, corev1alpha1.InstanceSpec{
+		Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+		Components: map[string]corev1alpha1.ComponentSpec{
+			common.ComponentDataNode: {Storage: storage(t, "50Gi")},
+		},
+	})
+	spec, err := BuildMilvusSpec(c)
+	require.NoError(t, err)
+
+	// etcd data PVC falls back to the modest provider default.
+	assert.Equal(t, map[string]any{"size": "10Gi"}, spec.Dep.Etcd.InCluster.Values["persistence"])
+
+	// MinIO derives its size from the data-bearing component's storage.
+	assert.Equal(t, map[string]any{"size": "50Gi"}, spec.Dep.Storage.InCluster.Values["persistence"])
+
+	bookkeeper := spec.Dep.Pulsar.InCluster.Values["bookkeeper"].(map[string]any)
+	assert.Equal(t, map[string]any{
+		"journal": map[string]any{"size": "5Gi"},
+		"ledgers": map[string]any{"size": "10Gi"},
+	}, bookkeeper["volumes"])
+
+	zookeeper := spec.Dep.Pulsar.InCluster.Values["zookeeper"].(map[string]any)
+	assert.Equal(t, map[string]any{"data": map[string]any{"size": "5Gi"}}, zookeeper["volumes"])
+}
+
+func TestBuildDependenciesPersistenceOverrides(t *testing.T) {
+	params := cluster.ClusterTopologyParameters{
+		Dependencies: &cluster.ClusterDependencies{
+			Etcd:    &dependencies.Etcd{Persistence: &dependencies.Persistence{Size: "20Gi"}},
+			Storage: &dependencies.Storage{Persistence: &dependencies.Persistence{Size: "100Gi"}},
+			Pulsar: &dependencies.Pulsar{
+				BookKeeper: &dependencies.PulsarBookKeeper{
+					Journal: &dependencies.Persistence{Size: "8Gi"},
+					Ledgers: &dependencies.Persistence{Size: "16Gi"},
+				},
+				ZooKeeper: &dependencies.PulsarZooKeeper{
+					Data: &dependencies.Persistence{Size: "3Gi"},
+				},
+			},
+		},
+	}
+	c := newTestContext(t, corev1alpha1.InstanceSpec{
+		Topology: &corev1alpha1.TopologySpec{Type: "cluster", Parameters: topologyParams(t, params)},
+		Components: map[string]corev1alpha1.ComponentSpec{
+			common.ComponentDataNode: {Storage: storage(t, "50Gi")},
+		},
+	})
+	spec, err := BuildMilvusSpec(c)
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string]any{"size": "20Gi"}, spec.Dep.Etcd.InCluster.Values["persistence"])
+	// Explicit MinIO persistence overrides the component-derived size.
+	assert.Equal(t, map[string]any{"size": "100Gi"}, spec.Dep.Storage.InCluster.Values["persistence"])
+
+	bookkeeper := spec.Dep.Pulsar.InCluster.Values["bookkeeper"].(map[string]any)
+	assert.Equal(t, map[string]any{
+		"journal": map[string]any{"size": "8Gi"},
+		"ledgers": map[string]any{"size": "16Gi"},
+	}, bookkeeper["volumes"])
+
+	zookeeper := spec.Dep.Pulsar.InCluster.Values["zookeeper"].(map[string]any)
+	assert.Equal(t, map[string]any{"data": map[string]any{"size": "3Gi"}}, zookeeper["volumes"])
+}
+
+func TestBuildDependenciesStorageDefaultPersistence(t *testing.T) {
+	// Cluster with no data-bearing component storage falls back to the
+	// predictable MinIO default rather than the chart's oversized value.
+	c := newTestContext(t, corev1alpha1.InstanceSpec{
+		Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+	})
+	spec, err := BuildMilvusSpec(c)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"size": "10Gi"}, spec.Dep.Storage.InCluster.Values["persistence"])
+}
+
 func TestValidateDependencies(t *testing.T) {
 	tests := []struct {
 		name    string

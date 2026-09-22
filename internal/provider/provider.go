@@ -64,13 +64,14 @@ func componentReplicasOrDefault(components map[string]corev1alpha1.ComponentSpec
 	return makeComponentReplica(defaultReplicas)
 }
 
-func componentResourceLimitsOrNil(components map[string]corev1alpha1.ComponentSpec, name string) *corev1.ResourceRequirements {
+func componentResourcesOrNil(components map[string]corev1alpha1.ComponentSpec, name string) *corev1.ResourceRequirements {
 	component := components[name]
-	if component.Resources == nil || len(component.Resources.Limits) == 0 {
+	if component.Resources == nil || (len(component.Resources.Limits) == 0 && len(component.Resources.Requests) == 0) {
 		return nil
 	}
 	return &corev1.ResourceRequirements{
-		Limits: component.Resources.Limits.DeepCopy(),
+		Limits:   component.Resources.Limits.DeepCopy(),
+		Requests: component.Resources.Requests.DeepCopy(),
 	}
 }
 
@@ -95,7 +96,7 @@ func makeMilvusComponentSpec(components map[string]corev1alpha1.ComponentSpec, n
 	return milvusapi.ComponentSpec{
 		Image:     image,
 		Version:   version,
-		Resources: componentResourceLimitsOrNil(components, name),
+		Resources: componentResourcesOrNil(components, name),
 	}
 }
 

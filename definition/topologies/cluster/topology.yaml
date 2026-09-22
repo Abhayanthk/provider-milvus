@@ -234,8 +234,8 @@ ui:
         - replicas
         - resources
     objectStorage:
-      label: Object storage (MinIO)
-      description: Configure the bundled MinIO object storage that holds Milvus data.
+      label: Object storage
+      description: Configure the bundled object storage that holds Milvus data.
       components:
         replicas:
           path: spec.topology.parameters.dependencies.storage.replicas
@@ -335,204 +335,228 @@ ui:
       componentsOrder:
         - replicas
         - resources
-    messageStreamBroker:
-      label: Message stream — Broker (Pulsar)
-      description: Configure the Pulsar broker sub-component.
+    messageStream:
+      label: Message stream (Pulsar)
+      description: Configure the bundled Pulsar message stream.
       components:
-        replicas:
-          path: spec.topology.parameters.dependencies.pulsar.broker.replicas
-          uiType: number
-          fieldParams:
-            label: Replicas
-            defaultValue: 1
-          validation:
-            min: 1
-            int: true
-        resources:
+        broker:
           uiType: group
-          groupType: line
+          groupType: accordion
+          label: Broker
           components:
-            cpu:
-              path: spec.topology.parameters.dependencies.pulsar.broker.resources.requests.cpu
+            replicas:
+              path: spec.topology.parameters.dependencies.pulsar.broker.replicas
               uiType: number
               fieldParams:
-                label: CPU
-                defaultValue: 0.2
-                step: 0.1
-              validation:
-                min: 0.1
-            memory:
-              path: spec.topology.parameters.dependencies.pulsar.broker.resources.requests.memory
-              uiType: number
-              fieldParams:
-                label: RAM
-                defaultValue: 0.5
-                step: 0.1
-                badge: Gi
-                badgeToApi: true
-              validation:
-                min: 0.1
-      componentsOrder:
-        - replicas
-        - resources
-    messageStreamBookkeeper:
-      label: Message stream — BookKeeper (Pulsar)
-      description: Configure the Pulsar bookkeeper (bookie) sub-component and its volumes.
-      components:
-        replicas:
-          path: spec.topology.parameters.dependencies.pulsar.bookkeeper.replicas
-          uiType: number
-          fieldParams:
-            label: Replicas
-            defaultValue: 2
-          validation:
-            min: 1
-            int: true
-        resources:
-          uiType: group
-          groupType: line
-          components:
-            cpu:
-              path: spec.topology.parameters.dependencies.pulsar.bookkeeper.resources.requests.cpu
-              uiType: number
-              fieldParams:
-                label: CPU
-                defaultValue: 0.2
-                step: 0.1
-              validation:
-                min: 0.1
-            memory:
-              path: spec.topology.parameters.dependencies.pulsar.bookkeeper.resources.requests.memory
-              uiType: number
-              fieldParams:
-                label: RAM
-                defaultValue: 0.5
-                step: 0.1
-                badge: Gi
-                badgeToApi: true
-              validation:
-                min: 0.1
-        volumes:
-          uiType: group
-          groupType: line
-          components:
-            journal:
-              path: spec.topology.parameters.dependencies.pulsar.bookkeeper.journal.size
-              uiType: number
-              fieldParams:
-                label: Journal
-                defaultValue: 5
-                badge: Gi
-                badgeToApi: true
+                label: Replicas
+                defaultValue: 1
               validation:
                 min: 1
                 int: true
-            ledgers:
-              path: spec.topology.parameters.dependencies.pulsar.bookkeeper.ledgers.size
+            resources:
+              uiType: group
+              groupType: line
+              components:
+                cpu:
+                  path: spec.topology.parameters.dependencies.pulsar.broker.resources.requests.cpu
+                  uiType: number
+                  fieldParams:
+                    label: CPU
+                    defaultValue: 0.2
+                    step: 0.1
+                  validation:
+                    min: 0.1
+                memory:
+                  path: spec.topology.parameters.dependencies.pulsar.broker.resources.requests.memory
+                  uiType: number
+                  fieldParams:
+                    label: RAM
+                    defaultValue: 0.5
+                    step: 0.1
+                    badge: Gi
+                    badgeToApi: true
+                  validation:
+                    min: 0.1
+          componentsOrder:
+            - replicas
+            - resources
+        bookkeeper:
+          uiType: group
+          groupType: accordion
+          label: BookKeeper
+          components:
+            replicas:
+              path: spec.topology.parameters.dependencies.pulsar.bookkeeper.replicas
               uiType: number
               fieldParams:
-                label: Ledgers
-                defaultValue: 10
-                badge: Gi
-                badgeToApi: true
+                label: Replicas
+                defaultValue: 2
               validation:
                 min: 1
                 int: true
-      componentsOrder:
-        - replicas
-        - resources
-        - volumes
-    messageStreamZookeeper:
-      label: Message stream — ZooKeeper (Pulsar)
-      description: Configure the Pulsar zookeeper sub-component and its data volume.
-      components:
-        replicas:
-          path: spec.topology.parameters.dependencies.pulsar.zookeeper.replicas
-          uiType: number
-          fieldParams:
-            label: Replicas
-            defaultValue: 1
-          validation:
-            min: 1
-            int: true
-        resources:
+            resources:
+              uiType: group
+              groupType: line
+              components:
+                cpu:
+                  path: spec.topology.parameters.dependencies.pulsar.bookkeeper.resources.requests.cpu
+                  uiType: number
+                  fieldParams:
+                    label: CPU
+                    defaultValue: 0.2
+                    step: 0.1
+                  validation:
+                    min: 0.1
+                memory:
+                  path: spec.topology.parameters.dependencies.pulsar.bookkeeper.resources.requests.memory
+                  uiType: number
+                  fieldParams:
+                    label: RAM
+                    defaultValue: 0.5
+                    step: 0.1
+                    badge: Gi
+                    badgeToApi: true
+                  validation:
+                    min: 0.1
+            advanced:
+              uiType: group
+              groupType: accordion
+              label: Advanced
+              components:
+                volumes:
+                  uiType: group
+                  groupType: line
+                  components:
+                    journal:
+                      path: spec.topology.parameters.dependencies.pulsar.bookkeeper.journal.size
+                      uiType: number
+                      fieldParams:
+                        label: Journal
+                        defaultValue: 5
+                        badge: Gi
+                        badgeToApi: true
+                      validation:
+                        min: 1
+                        int: true
+                    ledgers:
+                      path: spec.topology.parameters.dependencies.pulsar.bookkeeper.ledgers.size
+                      uiType: number
+                      fieldParams:
+                        label: Ledgers
+                        defaultValue: 10
+                        badge: Gi
+                        badgeToApi: true
+                      validation:
+                        min: 1
+                        int: true
+          componentsOrder:
+            - replicas
+            - resources
+            - advanced
+        zookeeper:
           uiType: group
-          groupType: line
+          groupType: accordion
+          label: ZooKeeper
           components:
-            cpu:
-              path: spec.topology.parameters.dependencies.pulsar.zookeeper.resources.requests.cpu
+            replicas:
+              path: spec.topology.parameters.dependencies.pulsar.zookeeper.replicas
               uiType: number
               fieldParams:
-                label: CPU
-                defaultValue: 0.1
-                step: 0.1
-              validation:
-                min: 0.1
-            memory:
-              path: spec.topology.parameters.dependencies.pulsar.zookeeper.resources.requests.memory
-              uiType: number
-              fieldParams:
-                label: RAM
-                defaultValue: 0.25
-                step: 0.1
-                badge: Gi
-                badgeToApi: true
-              validation:
-                min: 0.1
-            data:
-              path: spec.topology.parameters.dependencies.pulsar.zookeeper.data.size
-              uiType: number
-              fieldParams:
-                label: Data
-                defaultValue: 5
-                badge: Gi
-                badgeToApi: true
+                label: Replicas
+                defaultValue: 1
               validation:
                 min: 1
                 int: true
-      componentsOrder:
-        - replicas
-        - resources
-    messageStreamProxy:
-      label: Message stream — Proxy (Pulsar)
-      description: Configure the Pulsar proxy sub-component.
-      components:
-        replicas:
-          path: spec.topology.parameters.dependencies.pulsar.proxy.replicas
-          uiType: number
-          fieldParams:
-            label: Replicas
-            defaultValue: 1
-          validation:
-            min: 1
-            int: true
-        resources:
+            resources:
+              uiType: group
+              groupType: line
+              components:
+                cpu:
+                  path: spec.topology.parameters.dependencies.pulsar.zookeeper.resources.requests.cpu
+                  uiType: number
+                  fieldParams:
+                    label: CPU
+                    defaultValue: 0.1
+                    step: 0.1
+                  validation:
+                    min: 0.1
+                memory:
+                  path: spec.topology.parameters.dependencies.pulsar.zookeeper.resources.requests.memory
+                  uiType: number
+                  fieldParams:
+                    label: RAM
+                    defaultValue: 0.25
+                    step: 0.1
+                    badge: Gi
+                    badgeToApi: true
+                  validation:
+                    min: 0.1
+            advanced:
+              uiType: group
+              groupType: accordion
+              label: Advanced
+              components:
+                data:
+                  path: spec.topology.parameters.dependencies.pulsar.zookeeper.data.size
+                  uiType: number
+                  fieldParams:
+                    label: Data
+                    defaultValue: 5
+                    badge: Gi
+                    badgeToApi: true
+                  validation:
+                    min: 1
+                    int: true
+          componentsOrder:
+            - replicas
+            - resources
+            - advanced
+        proxy:
           uiType: group
-          groupType: line
+          groupType: accordion
+          label: Proxy
           components:
-            cpu:
-              path: spec.topology.parameters.dependencies.pulsar.proxy.resources.requests.cpu
+            replicas:
+              path: spec.topology.parameters.dependencies.pulsar.proxy.replicas
               uiType: number
               fieldParams:
-                label: CPU
-                defaultValue: 0.1
-                step: 0.1
+                label: Replicas
+                defaultValue: 1
               validation:
-                min: 0.1
-            memory:
-              path: spec.topology.parameters.dependencies.pulsar.proxy.resources.requests.memory
-              uiType: number
-              fieldParams:
-                label: RAM
-                defaultValue: 0.25
-                step: 0.1
-                badge: Gi
-                badgeToApi: true
-              validation:
-                min: 0.1
+                min: 1
+                int: true
+            resources:
+              uiType: group
+              groupType: line
+              components:
+                cpu:
+                  path: spec.topology.parameters.dependencies.pulsar.proxy.resources.requests.cpu
+                  uiType: number
+                  fieldParams:
+                    label: CPU
+                    defaultValue: 0.1
+                    step: 0.1
+                  validation:
+                    min: 0.1
+                memory:
+                  path: spec.topology.parameters.dependencies.pulsar.proxy.resources.requests.memory
+                  uiType: number
+                  fieldParams:
+                    label: RAM
+                    defaultValue: 0.25
+                    step: 0.1
+                    badge: Gi
+                    badgeToApi: true
+                  validation:
+                    min: 0.1
+          componentsOrder:
+            - replicas
+            - resources
       componentsOrder:
-        - replicas
-        - resources
+        - broker
+        - bookkeeper
+        - zookeeper
+        - proxy
     advanced:
       label: "Advanced configuration"
       description: "Configure advanced Milvus engine settings shared across all components."
@@ -559,8 +583,5 @@ ui:
     - queryNodes
     - objectStorage
     - metadataStore
-    - messageStreamBroker
-    - messageStreamBookkeeper
-    - messageStreamZookeeper
-    - messageStreamProxy
+    - messageStream
     - advanced

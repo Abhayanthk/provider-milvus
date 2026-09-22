@@ -87,8 +87,8 @@ ui:
               - label: LoadBalancer
                 value: LoadBalancer
     objectStorage:
-      label: Object storage (MinIO)
-      description: Configure the bundled MinIO object storage that holds Milvus data.
+      label: Object storage
+      description: Configure the bundled object storage that holds Milvus data.
       components:
         replicas:
           path: spec.topology.parameters.dependencies.storage.replicas

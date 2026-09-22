@@ -41,6 +41,8 @@ func TestBuildDependenciesStandaloneDefaults(t *testing.T) {
 	require.NotNil(t, spec.Dep.Storage.InCluster)
 	assert.Equal(t, "standalone", spec.Dep.Storage.InCluster.Values["mode"])
 	assert.Equal(t, map[string]any{"size": "20Gi"}, spec.Dep.Storage.InCluster.Values["persistence"])
+	assert.Equal(t, map[string]any{"repository": "quay.io/minio/minio"}, spec.Dep.Storage.InCluster.Values["image"])
+	assert.Equal(t, map[string]any{"repository": "quay.io/minio/mc"}, spec.Dep.Storage.InCluster.Values["mcImage"])
 
 	// Standalone uses embedded rocksmq: no Pulsar dependency is configured.
 	assert.Nil(t, spec.Dep.Pulsar.InCluster)

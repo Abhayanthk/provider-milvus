@@ -20,26 +20,39 @@ var (
 	defaultEtcdResources = &dependencies.Resources{
 		Requests: &dependencies.ResourceList{CPU: "100m", Memory: "256Mi"},
 	}
+	// defaultEtcdPersistence keeps the etcd data PVC modest instead of the
+	// chart's larger default.
+	defaultEtcdPersistence = "10Gi"
+
 	defaultStorageResources = &dependencies.Resources{
 		Requests: &dependencies.ResourceList{CPU: "100m", Memory: "256Mi"},
 	}
 	defaultStorageReplicas int32 = 1
+	// defaultStoragePersistence sizes MinIO when no data-bearing component
+	// storage is provided.
+	defaultStoragePersistence = "10Gi"
 
 	defaultPulsarBroker = dependencies.PulsarComponent{
 		Replicas:  ptr.To(int32(1)),
 		Resources: &dependencies.Resources{Requests: &dependencies.ResourceList{CPU: "200m", Memory: "512Mi"}},
 	}
-	defaultPulsarBookKeeper = dependencies.PulsarComponent{
-		Replicas:  ptr.To(int32(2)),
-		Resources: &dependencies.Resources{Requests: &dependencies.ResourceList{CPU: "200m", Memory: "512Mi"}},
-	}
-	defaultPulsarZooKeeper = dependencies.PulsarComponent{
-		Replicas:  ptr.To(int32(1)),
-		Resources: &dependencies.Resources{Requests: &dependencies.ResourceList{CPU: "100m", Memory: "256Mi"}},
-	}
 	defaultPulsarProxy = dependencies.PulsarComponent{
 		Replicas:  ptr.To(int32(1)),
 		Resources: &dependencies.Resources{Requests: &dependencies.ResourceList{CPU: "100m", Memory: "256Mi"}},
+	}
+	// Pulsar bookie and zookeeper volumes default to the chart's very large
+	// sizes (journal 100Gi, ledgers 200Gi, data 20Gi); pin modest predictable
+	// values here so a fresh cluster does not over-provision.
+	defaultPulsarBookKeeper = dependencies.PulsarBookKeeper{
+		Replicas:  ptr.To(int32(2)),
+		Resources: &dependencies.Resources{Requests: &dependencies.ResourceList{CPU: "200m", Memory: "512Mi"}},
+		Journal:   &dependencies.Persistence{Size: "5Gi"},
+		Ledgers:   &dependencies.Persistence{Size: "10Gi"},
+	}
+	defaultPulsarZooKeeper = dependencies.PulsarZooKeeper{
+		Replicas:  ptr.To(int32(1)),
+		Resources: &dependencies.Resources{Requests: &dependencies.ResourceList{CPU: "100m", Memory: "256Mi"}},
+		Data:      &dependencies.Persistence{Size: "5Gi"},
 	}
 )
 
@@ -90,16 +103,23 @@ func buildEtcd(param *dependencies.Etcd, topologyType string) milvusapi.MilvusEt
 	}
 	replicas := defaultReplicas
 	resources := defaultEtcdResources
+	persistenceSize := defaultEtcdPersistence
 	if param != nil {
 		if param.Replicas != nil {
 			replicas = *param.Replicas
 		}
 		resources = mergeResources(param.Resources, defaultEtcdResources)
+		if param.Persistence != nil && param.Persistence.Size != "" {
+			persistenceSize = param.Persistence.Size
+		}
 	}
 
 	values := milvusapi.Values{"replicaCount": int(replicas)}
 	if res := resourcesToValues(resources); res != nil {
 		values["resources"] = res
+	}
+	if persistenceSize != "" {
+		values["persistence"] = map[string]any{"size": persistenceSize}
 	}
 	return milvusapi.MilvusEtcd{InCluster: &milvusapi.InClusterConfig{Values: values}}
 }
@@ -121,6 +141,15 @@ func buildStorage(param *dependencies.Storage, persistenceSize string) milvusapi
 		resources = mergeResources(param.Resources, defaultStorageResources)
 	}
 
+	// Explicit dependency persistence overrides the data-bearing component's
+	// storage size; otherwise fall back to a predictable default.
+	if param != nil && param.Persistence != nil && param.Persistence.Size != "" {
+		persistenceSize = param.Persistence.Size
+	}
+	if persistenceSize == "" {
+		persistenceSize = defaultStoragePersistence
+	}
+
 	values := milvusapi.Values{
 		"mode":     minioMode(replicas),
 		"replicas": int(replicas),
@@ -128,12 +157,10 @@ func buildStorage(param *dependencies.Storage, persistenceSize string) milvusapi
 		// MinIO from the public quay.io mirror instead, keeping the operator's tags.
 		"image":   map[string]any{"repository": "quay.io/minio/minio"},
 		"mcImage": map[string]any{"repository": "quay.io/minio/mc"},
+		"persistence": map[string]any{"size": persistenceSize},
 	}
 	if res := resourcesToValues(resources); res != nil {
 		values["resources"] = res
-	}
-	if persistenceSize != "" {
-		values["persistence"] = map[string]any{"size": persistenceSize}
 	}
 	return milvusapi.MilvusStorage{InCluster: &milvusapi.InClusterConfig{Values: values}}
 }
@@ -152,15 +179,15 @@ func buildPulsar(param *dependencies.Pulsar) milvusapi.MilvusPulsar {
 	proxy := defaultPulsarProxy
 	if param != nil {
 		broker = mergePulsarComponent(param.Broker, defaultPulsarBroker)
-		bookkeeper = mergePulsarComponent(param.BookKeeper, defaultPulsarBookKeeper)
-		zookeeper = mergePulsarComponent(param.ZooKeeper, defaultPulsarZooKeeper)
+		bookkeeper = mergePulsarBookKeeper(param.BookKeeper, defaultPulsarBookKeeper)
+		zookeeper = mergePulsarZooKeeper(param.ZooKeeper, defaultPulsarZooKeeper)
 		proxy = mergePulsarComponent(param.Proxy, defaultPulsarProxy)
 	}
 
 	values := milvusapi.Values{
 		"broker":     pulsarComponentValues(broker),
-		"bookkeeper": pulsarComponentValues(bookkeeper),
-		"zookeeper":  pulsarComponentValues(zookeeper),
+		"bookkeeper": bookKeeperValues(bookkeeper),
+		"zookeeper":  zooKeeperValues(zookeeper),
 		"proxy":      pulsarComponentValues(proxy),
 	}
 	return milvusapi.MilvusPulsar{InCluster: &milvusapi.InClusterConfig{Values: values}}
@@ -196,6 +223,84 @@ func pulsarComponentValues(component dependencies.PulsarComponent) map[string]an
 	}
 	if res := resourcesToValues(component.Resources); res != nil {
 		values["resources"] = res
+	}
+	return values
+}
+
+// mergePulsarBookKeeper overlays user-provided replica/resource/volume settings
+// on top of the default bookkeeper sub-component.
+func mergePulsarBookKeeper(param *dependencies.PulsarBookKeeper, def dependencies.PulsarBookKeeper) dependencies.PulsarBookKeeper {
+	if param == nil {
+		return def
+	}
+	merged := def
+	if param.Replicas != nil {
+		merged.Replicas = param.Replicas
+	}
+	merged.Resources = mergeResources(param.Resources, def.Resources)
+	merged.Journal = mergePersistence(param.Journal, def.Journal)
+	merged.Ledgers = mergePersistence(param.Ledgers, def.Ledgers)
+	return merged
+}
+
+// mergePulsarZooKeeper overlays user-provided replica/resource/volume settings
+// on top of the default zookeeper sub-component.
+func mergePulsarZooKeeper(param *dependencies.PulsarZooKeeper, def dependencies.PulsarZooKeeper) dependencies.PulsarZooKeeper {
+	if param == nil {
+		return def
+	}
+	merged := def
+	if param.Replicas != nil {
+		merged.Replicas = param.Replicas
+	}
+	merged.Resources = mergeResources(param.Resources, def.Resources)
+	merged.Data = mergePersistence(param.Data, def.Data)
+	return merged
+}
+
+// mergePersistence returns param when it sets a size, otherwise the default.
+func mergePersistence(param, def *dependencies.Persistence) *dependencies.Persistence {
+	if param != nil && param.Size != "" {
+		return param
+	}
+	return def
+}
+
+// bookKeeperValues renders the bookkeeper sub-component (including its journal
+// and ledger volumes) into Helm values.
+func bookKeeperValues(bk dependencies.PulsarBookKeeper) map[string]any {
+	values := map[string]any{}
+	if bk.Replicas != nil {
+		values["replicaCount"] = int(*bk.Replicas)
+	}
+	if res := resourcesToValues(bk.Resources); res != nil {
+		values["resources"] = res
+	}
+	volumes := map[string]any{}
+	if bk.Journal != nil && bk.Journal.Size != "" {
+		volumes["journal"] = map[string]any{"size": bk.Journal.Size}
+	}
+	if bk.Ledgers != nil && bk.Ledgers.Size != "" {
+		volumes["ledgers"] = map[string]any{"size": bk.Ledgers.Size}
+	}
+	if len(volumes) > 0 {
+		values["volumes"] = volumes
+	}
+	return values
+}
+
+// zooKeeperValues renders the zookeeper sub-component (including its data
+// volume) into Helm values.
+func zooKeeperValues(zk dependencies.PulsarZooKeeper) map[string]any {
+	values := map[string]any{}
+	if zk.Replicas != nil {
+		values["replicaCount"] = int(*zk.Replicas)
+	}
+	if res := resourcesToValues(zk.Resources); res != nil {
+		values["resources"] = res
+	}
+	if zk.Data != nil && zk.Data.Size != "" {
+		values["volumes"] = map[string]any{"data": map[string]any{"size": zk.Data.Size}}
 	}
 	return values
 }

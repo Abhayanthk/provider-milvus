@@ -103,13 +103,6 @@ spec:
   topologies:
     cluster:
       components:
-        dataCoord:
-          supportedFields:
-            openAPIV3Schema:
-              properties:
-                replicas:
-                  minimum: 1
-                resources: {}
         dataNode:
           supportedFields:
             openAPIV3Schema:
@@ -120,14 +113,7 @@ spec:
                 storage: {}
               required:
                 - storage
-        indexCoord:
-          supportedFields:
-            openAPIV3Schema:
-              properties:
-                replicas:
-                  minimum: 1
-                resources: {}
-        indexNode:
+        mixCoord:
           supportedFields:
             openAPIV3Schema:
               properties:
@@ -142,13 +128,6 @@ spec:
                   minimum: 1
                 resources: {}
                 service: {}
-        queryCoord:
-          supportedFields:
-            openAPIV3Schema:
-              properties:
-                replicas:
-                  minimum: 1
-                resources: {}
         queryNode:
           supportedFields:
             openAPIV3Schema:
@@ -159,7 +138,7 @@ spec:
                 storage: {}
               required:
                 - storage
-        rootCoord:
+        streamingNode:
           supportedFields:
             openAPIV3Schema:
               properties:
@@ -179,6 +158,11 @@ spec:
                       type: array
                     external:
                       type: boolean
+                    persistence:
+                      properties:
+                        size:
+                          type: string
+                      type: object
                     replicas:
                       format: int32
                       type: integer
@@ -204,6 +188,16 @@ spec:
                   properties:
                     bookkeeper:
                       properties:
+                        journal:
+                          properties:
+                            size:
+                              type: string
+                          type: object
+                        ledgers:
+                          properties:
+                            size:
+                              type: string
+                          type: object
                         replicas:
                           format: int32
                           type: integer
@@ -277,6 +271,11 @@ spec:
                       type: object
                     zookeeper:
                       properties:
+                        data:
+                          properties:
+                            size:
+                              type: string
+                          type: object
                         replicas:
                           format: int32
                           type: integer
@@ -305,6 +304,11 @@ spec:
                       type: string
                     external:
                       type: boolean
+                    persistence:
+                      properties:
+                        size:
+                          type: string
+                      type: object
                     replicas:
                       format: int32
                       type: integer
@@ -354,6 +358,11 @@ spec:
                       type: array
                     external:
                       type: boolean
+                    persistence:
+                      properties:
+                        size:
+                          type: string
+                      type: object
                     replicas:
                       format: int32
                       type: integer
@@ -381,6 +390,11 @@ spec:
                       type: string
                     external:
                       type: boolean
+                    persistence:
+                      properties:
+                        size:
+                          type: string
+                      type: object
                     replicas:
                       format: int32
                       type: integer
@@ -439,6 +453,45 @@ spec:
               uiType: select
           description: Configure the cluster Milvus deployment.
           label: Basic Information
+        coordinator:
+          components:
+            replicas:
+              fieldParams:
+                defaultValue: 1
+                label: Replicas
+              path: spec.components.mixCoord.replicas
+              uiType: number
+              validation:
+                min: 1
+            resources:
+              components:
+                cpu:
+                  fieldParams:
+                    defaultValue: 1
+                    label: CPU
+                    step: 0.1
+                  path: spec.components.mixCoord.resources.limits.cpu
+                  uiType: number
+                  validation:
+                    min: 0.1
+                memory:
+                  fieldParams:
+                    badge: Gi
+                    badgeToApi: true
+                    defaultValue: 2
+                    label: RAM
+                    step: 0.1
+                  path: spec.components.mixCoord.resources.limits.memory
+                  uiType: number
+                  validation:
+                    min: 0.5
+              groupType: line
+              uiType: group
+          componentsOrder:
+            - replicas
+            - resources
+          description: Configure the Milvus coordinator.
+          label: Coordinator
         dataNodes:
           components:
             replicas:
@@ -489,6 +542,336 @@ spec:
             - resources
           description: Configure the data nodes.
           label: Data nodes
+        messageStream:
+          components:
+            bookkeeper:
+              components:
+                settings:
+                  components:
+                    replicas:
+                      fieldParams:
+                        defaultValue: 2
+                        label: Replicas
+                      path: spec.topology.parameters.dependencies.pulsar.bookkeeper.replicas
+                      uiType: number
+                      validation:
+                        int: true
+                        min: 1
+                    resources:
+                      components:
+                        cpu:
+                          fieldParams:
+                            defaultValue: 0.2
+                            label: CPU
+                            step: 0.1
+                          path: spec.topology.parameters.dependencies.pulsar.bookkeeper.resources.requests.cpu
+                          uiType: number
+                          validation:
+                            min: 0.1
+                        memory:
+                          fieldParams:
+                            badge: Gi
+                            badgeToApi: true
+                            defaultValue: 0.5
+                            label: RAM
+                            step: 0.1
+                          path: spec.topology.parameters.dependencies.pulsar.bookkeeper.resources.requests.memory
+                          uiType: number
+                          validation:
+                            min: 0.1
+                      groupType: line
+                      uiType: group
+                    volumes:
+                      components:
+                        journal:
+                          fieldParams:
+                            badge: Gi
+                            badgeToApi: true
+                            defaultValue: 5
+                            label: Journal
+                          path: spec.topology.parameters.dependencies.pulsar.bookkeeper.journal.size
+                          uiType: number
+                          validation:
+                            int: true
+                            min: 1
+                        ledgers:
+                          fieldParams:
+                            badge: Gi
+                            badgeToApi: true
+                            defaultValue: 10
+                            label: Ledgers
+                          path: spec.topology.parameters.dependencies.pulsar.bookkeeper.ledgers.size
+                          uiType: number
+                          validation:
+                            int: true
+                            min: 1
+                      groupType: line
+                      uiType: group
+                  componentsOrder:
+                    - replicas
+                    - resources
+                    - volumes
+                  uiType: group
+              groupType: accordion
+              label: BookKeeper
+              uiType: group
+            broker:
+              components:
+                settings:
+                  components:
+                    replicas:
+                      fieldParams:
+                        defaultValue: 1
+                        label: Replicas
+                      path: spec.topology.parameters.dependencies.pulsar.broker.replicas
+                      uiType: number
+                      validation:
+                        int: true
+                        min: 1
+                    resources:
+                      components:
+                        cpu:
+                          fieldParams:
+                            defaultValue: 0.2
+                            label: CPU
+                            step: 0.1
+                          path: spec.topology.parameters.dependencies.pulsar.broker.resources.requests.cpu
+                          uiType: number
+                          validation:
+                            min: 0.1
+                        memory:
+                          fieldParams:
+                            badge: Gi
+                            badgeToApi: true
+                            defaultValue: 0.5
+                            label: RAM
+                            step: 0.1
+                          path: spec.topology.parameters.dependencies.pulsar.broker.resources.requests.memory
+                          uiType: number
+                          validation:
+                            min: 0.1
+                      groupType: line
+                      uiType: group
+                  componentsOrder:
+                    - replicas
+                    - resources
+                  uiType: group
+              groupType: accordion
+              label: Broker
+              uiType: group
+            proxy:
+              components:
+                settings:
+                  components:
+                    replicas:
+                      fieldParams:
+                        defaultValue: 1
+                        label: Replicas
+                      path: spec.topology.parameters.dependencies.pulsar.proxy.replicas
+                      uiType: number
+                      validation:
+                        int: true
+                        min: 1
+                    resources:
+                      components:
+                        cpu:
+                          fieldParams:
+                            defaultValue: 0.1
+                            label: CPU
+                            step: 0.1
+                          path: spec.topology.parameters.dependencies.pulsar.proxy.resources.requests.cpu
+                          uiType: number
+                          validation:
+                            min: 0.1
+                        memory:
+                          fieldParams:
+                            badge: Gi
+                            badgeToApi: true
+                            defaultValue: 0.25
+                            label: RAM
+                            step: 0.1
+                          path: spec.topology.parameters.dependencies.pulsar.proxy.resources.requests.memory
+                          uiType: number
+                          validation:
+                            min: 0.1
+                      groupType: line
+                      uiType: group
+                  componentsOrder:
+                    - replicas
+                    - resources
+                  uiType: group
+              groupType: accordion
+              label: Proxy
+              uiType: group
+            zookeeper:
+              components:
+                settings:
+                  components:
+                    replicas:
+                      fieldParams:
+                        defaultValue: 1
+                        label: Replicas
+                      path: spec.topology.parameters.dependencies.pulsar.zookeeper.replicas
+                      uiType: number
+                      validation:
+                        int: true
+                        min: 1
+                    resources:
+                      components:
+                        cpu:
+                          fieldParams:
+                            defaultValue: 0.1
+                            label: CPU
+                            step: 0.1
+                          path: spec.topology.parameters.dependencies.pulsar.zookeeper.resources.requests.cpu
+                          uiType: number
+                          validation:
+                            min: 0.1
+                        memory:
+                          fieldParams:
+                            badge: Gi
+                            badgeToApi: true
+                            defaultValue: 0.25
+                            label: RAM
+                            step: 0.1
+                          path: spec.topology.parameters.dependencies.pulsar.zookeeper.resources.requests.memory
+                          uiType: number
+                          validation:
+                            min: 0.1
+                      groupType: line
+                      uiType: group
+                    volumes:
+                      components:
+                        data:
+                          fieldParams:
+                            badge: Gi
+                            badgeToApi: true
+                            defaultValue: 5
+                            label: Data
+                          path: spec.topology.parameters.dependencies.pulsar.zookeeper.data.size
+                          uiType: number
+                          validation:
+                            int: true
+                            min: 1
+                      groupType: line
+                      uiType: group
+                  componentsOrder:
+                    - replicas
+                    - resources
+                    - volumes
+                  uiType: group
+              groupType: accordion
+              label: ZooKeeper
+              uiType: group
+          componentsOrder:
+            - broker
+            - bookkeeper
+            - zookeeper
+            - proxy
+          description: Configure the bundled message stream.
+          label: Message stream
+        metadataStore:
+          components:
+            replicas:
+              fieldParams:
+                defaultValue: 3
+                label: Replicas
+              path: spec.topology.parameters.dependencies.etcd.replicas
+              uiType: number
+              validation:
+                int: true
+                min: 1
+            resources:
+              components:
+                cpu:
+                  fieldParams:
+                    defaultValue: 0.1
+                    label: CPU
+                    step: 0.1
+                  path: spec.topology.parameters.dependencies.etcd.resources.requests.cpu
+                  uiType: number
+                  validation:
+                    min: 0.1
+                memory:
+                  fieldParams:
+                    badge: Gi
+                    badgeToApi: true
+                    defaultValue: 0.25
+                    label: RAM
+                    step: 0.1
+                  path: spec.topology.parameters.dependencies.etcd.resources.requests.memory
+                  uiType: number
+                  validation:
+                    min: 0.1
+                storage:
+                  fieldParams:
+                    badge: Gi
+                    badgeToApi: true
+                    defaultValue: 10
+                    label: Storage
+                  path: spec.topology.parameters.dependencies.etcd.persistence.size
+                  uiType: number
+                  validation:
+                    int: true
+                    min: 1
+              groupType: line
+              uiType: group
+          componentsOrder:
+            - replicas
+            - resources
+          description: Configure the bundled metadata store.
+          label: Metadata store
+        objectStorage:
+          components:
+            replicas:
+              fieldParams:
+                defaultValue: 1
+                label: Replicas
+              path: spec.topology.parameters.dependencies.storage.replicas
+              uiType: number
+              validation:
+                int: true
+                min: 1
+            resources:
+              components:
+                cpu:
+                  fieldParams:
+                    defaultValue: 0.1
+                    label: CPU
+                    step: 0.1
+                  path: spec.topology.parameters.dependencies.storage.resources.requests.cpu
+                  uiType: number
+                  validation:
+                    min: 0.1
+                memory:
+                  fieldParams:
+                    badge: Gi
+                    badgeToApi: true
+                    defaultValue: 0.25
+                    label: RAM
+                    step: 0.1
+                  path: spec.topology.parameters.dependencies.storage.resources.requests.memory
+                  uiType: number
+                  validation:
+                    min: 0.1
+                storage:
+                  fieldParams:
+                    badge: Gi
+                    badgeToApi: true
+                    defaultValue: 10
+                    label: Storage
+                  path: spec.topology.parameters.dependencies.storage.persistence.size
+                  uiType: number
+                  validation:
+                    int: true
+                    min: 1
+              groupType: line
+              uiType: group
+          componentsOrder:
+            - replicas
+            - resources
+          description: Configure the bundled object storage that holds Milvus data.
+          label: Object storage
         proxy:
           components:
             externalAccess:
@@ -592,11 +975,55 @@ spec:
             - resources
           description: Configure the query nodes.
           label: Query nodes
+        streamingNodes:
+          components:
+            replicas:
+              fieldParams:
+                defaultValue: 1
+                label: Replicas
+              path: spec.components.streamingNode.replicas
+              uiType: number
+              validation:
+                min: 1
+            resources:
+              components:
+                cpu:
+                  fieldParams:
+                    defaultValue: 1
+                    label: CPU
+                    step: 0.1
+                  path: spec.components.streamingNode.resources.limits.cpu
+                  uiType: number
+                  validation:
+                    min: 0.1
+                memory:
+                  fieldParams:
+                    badge: Gi
+                    badgeToApi: true
+                    defaultValue: 2
+                    label: RAM
+                    step: 0.1
+                  path: spec.components.streamingNode.resources.limits.memory
+                  uiType: number
+                  validation:
+                    min: 0.5
+              groupType: line
+              uiType: group
+          componentsOrder:
+            - replicas
+            - resources
+          description: Configure the streaming nodes.
+          label: Streaming nodes
       sectionsOrder:
         - basicInfo
         - dataNodes
         - proxy
         - queryNodes
+        - coordinator
+        - streamingNodes
+        - objectStorage
+        - metadataStore
+        - messageStream
         - advanced
     standalone:
       sections:
@@ -632,6 +1059,108 @@ spec:
               uiType: select
           description: Configure the standalone Milvus deployment.
           label: Basic Information
+        metadataStore:
+          components:
+            replicas:
+              fieldParams:
+                defaultValue: 1
+                label: Replicas
+              path: spec.topology.parameters.dependencies.etcd.replicas
+              uiType: number
+              validation:
+                int: true
+                min: 1
+            resources:
+              components:
+                cpu:
+                  fieldParams:
+                    defaultValue: 0.1
+                    label: CPU
+                    step: 0.1
+                  path: spec.topology.parameters.dependencies.etcd.resources.requests.cpu
+                  uiType: number
+                  validation:
+                    min: 0.1
+                memory:
+                  fieldParams:
+                    badge: Gi
+                    badgeToApi: true
+                    defaultValue: 0.25
+                    label: RAM
+                    step: 0.1
+                  path: spec.topology.parameters.dependencies.etcd.resources.requests.memory
+                  uiType: number
+                  validation:
+                    min: 0.1
+                storage:
+                  fieldParams:
+                    badge: Gi
+                    badgeToApi: true
+                    defaultValue: 10
+                    label: Storage
+                  path: spec.topology.parameters.dependencies.etcd.persistence.size
+                  uiType: number
+                  validation:
+                    int: true
+                    min: 1
+              groupType: line
+              uiType: group
+          componentsOrder:
+            - replicas
+            - resources
+          description: Configure the bundled metadata store.
+          label: Metadata store
+        objectStorage:
+          components:
+            replicas:
+              fieldParams:
+                defaultValue: 1
+                label: Replicas
+              path: spec.topology.parameters.dependencies.storage.replicas
+              uiType: number
+              validation:
+                int: true
+                min: 1
+            resources:
+              components:
+                cpu:
+                  fieldParams:
+                    defaultValue: 0.1
+                    label: CPU
+                    step: 0.1
+                  path: spec.topology.parameters.dependencies.storage.resources.requests.cpu
+                  uiType: number
+                  validation:
+                    min: 0.1
+                memory:
+                  fieldParams:
+                    badge: Gi
+                    badgeToApi: true
+                    defaultValue: 0.25
+                    label: RAM
+                    step: 0.1
+                  path: spec.topology.parameters.dependencies.storage.resources.requests.memory
+                  uiType: number
+                  validation:
+                    min: 0.1
+                storage:
+                  fieldParams:
+                    badge: Gi
+                    badgeToApi: true
+                    defaultValue: 10
+                    label: Storage
+                  path: spec.topology.parameters.dependencies.storage.persistence.size
+                  uiType: number
+                  validation:
+                    int: true
+                    min: 1
+              groupType: line
+              uiType: group
+          componentsOrder:
+            - replicas
+            - resources
+          description: Configure the bundled object storage that holds Milvus data.
+          label: Object storage
         resources:
           components:
             cpu:
@@ -692,32 +1221,24 @@ spec:
       sectionsOrder:
         - basicInfo
         - resources
+        - objectStorage
+        - metadataStore
         - advanced
   versions:
     - components:
-        dataCoord: 2.6.11
         dataNode: 2.6.11
-        indexCoord: 2.6.11
-        indexNode: 2.6.11
         mixCoord: 2.6.11
         proxy: 2.6.11
-        queryCoord: 2.6.11
         queryNode: 2.6.11
-        rootCoord: 2.6.11
         standalone: 2.6.11
         streamingNode: 2.6.11
       default: true
       name: 2.6.11
     - components:
-        dataCoord: 2.6.10
         dataNode: 2.6.10
-        indexCoord: 2.6.10
-        indexNode: 2.6.10
         mixCoord: 2.6.10
         proxy: 2.6.10
-        queryCoord: 2.6.10
         queryNode: 2.6.10
-        rootCoord: 2.6.10
         standalone: 2.6.10
         streamingNode: 2.6.10
       name: 2.6.10

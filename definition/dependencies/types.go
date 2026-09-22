@@ -25,6 +25,13 @@ type Resources struct {
 	Limits *ResourceList `json:"limits,omitempty"`
 }
 
+// Persistence sizes a single persistent volume of a bundled dependency.
+type Persistence struct {
+	// Size is the PVC size, e.g. "10Gi". Empty falls back to the per-topology
+	// default so bundled dependencies never inherit the chart's oversized values.
+	Size string `json:"size,omitempty"`
+}
+
 // Etcd configures the etcd metadata store dependency.
 type Etcd struct {
 	// External disables the bundled etcd and points Milvus at the provided
@@ -37,6 +44,8 @@ type Etcd struct {
 	Replicas *int32 `json:"replicas,omitempty"`
 	// Resources sizes the bundled etcd pods. Ignored when External.
 	Resources *Resources `json:"resources,omitempty"`
+	// Persistence sizes the etcd data PVC. Ignored when External.
+	Persistence *Persistence `json:"persistence,omitempty"`
 }
 
 // Storage configures the MinIO object storage dependency.
@@ -52,15 +61,41 @@ type Storage struct {
 	Replicas *int32 `json:"replicas,omitempty"`
 	// Resources sizes the bundled MinIO pods. Ignored when External.
 	Resources *Resources `json:"resources,omitempty"`
+	// Persistence sizes the MinIO data PVC. When unset it derives from the
+	// data-bearing Milvus component's storage size. Ignored when External.
+	Persistence *Persistence `json:"persistence,omitempty"`
 }
 
-// PulsarComponent sizes a single Pulsar sub-component (broker, bookkeeper,
-// zookeeper or proxy).
+// PulsarComponent sizes a stateless Pulsar sub-component (broker or proxy).
 type PulsarComponent struct {
 	// Replicas sets the sub-component replica count.
 	Replicas *int32 `json:"replicas,omitempty"`
 	// Resources sizes the sub-component pods.
 	Resources *Resources `json:"resources,omitempty"`
+}
+
+// PulsarBookKeeper sizes the Pulsar bookkeeper (bookie) sub-component, whose
+// pods carry two persistent volumes: a write-ahead journal and the ledger store.
+type PulsarBookKeeper struct {
+	// Replicas sets the bookie replica count.
+	Replicas *int32 `json:"replicas,omitempty"`
+	// Resources sizes the bookie pods.
+	Resources *Resources `json:"resources,omitempty"`
+	// Journal sizes the bookie write-ahead journal PVC.
+	Journal *Persistence `json:"journal,omitempty"`
+	// Ledgers sizes the bookie ledger storage PVC.
+	Ledgers *Persistence `json:"ledgers,omitempty"`
+}
+
+// PulsarZooKeeper sizes the Pulsar zookeeper sub-component, whose pods carry a
+// single data persistent volume.
+type PulsarZooKeeper struct {
+	// Replicas sets the zookeeper replica count.
+	Replicas *int32 `json:"replicas,omitempty"`
+	// Resources sizes the zookeeper pods.
+	Resources *Resources `json:"resources,omitempty"`
+	// Data sizes the zookeeper data PVC.
+	Data *Persistence `json:"data,omitempty"`
 }
 
 // Pulsar configures the Pulsar message-stream dependency (cluster mode only).
@@ -75,9 +110,9 @@ type Pulsar struct {
 	Broker *PulsarComponent `json:"broker,omitempty"`
 	// BookKeeper sizes the Pulsar bookkeeper (bookie) sub-component. Ignored
 	// when External.
-	BookKeeper *PulsarComponent `json:"bookkeeper,omitempty"`
+	BookKeeper *PulsarBookKeeper `json:"bookkeeper,omitempty"`
 	// ZooKeeper sizes the Pulsar zookeeper sub-component. Ignored when External.
-	ZooKeeper *PulsarComponent `json:"zookeeper,omitempty"`
+	ZooKeeper *PulsarZooKeeper `json:"zookeeper,omitempty"`
 	// Proxy sizes the Pulsar proxy sub-component. Ignored when External.
 	Proxy *PulsarComponent `json:"proxy,omitempty"`
 }

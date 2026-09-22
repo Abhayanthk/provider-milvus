@@ -93,7 +93,7 @@ func TestMilvusEngineConfig(t *testing.T) {
 		{
 			name: "nested keys under same section are merged",
 			components: map[string]corev1alpha1.ComponentSpec{
-				common.ComponentDataCoord: {
+				common.ComponentMixCoord: {
 					Parameters: configParams(t, "dataCoord:\n  segment:\n    maxSize: 1024\n"),
 				},
 				common.ComponentDataNode: {
@@ -177,6 +177,45 @@ func TestBuildMilvusSpecConfiguration(t *testing.T) {
 		require.NoError(t, err)
 		assert.Nil(t, spec.Conf)
 	})
+}
+
+func TestBuildMilvusSpecClusterComponents(t *testing.T) {
+	c := newTestContext(t, corev1alpha1.InstanceSpec{
+		Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+	})
+	spec, err := BuildMilvusSpec(c)
+	require.NoError(t, err)
+
+	// Milvus 2.6 cluster uses a single MixCoord plus a StreamingNode; the
+	// pre-2.6 coordinators and IndexNode are no longer generated.
+	require.NotNil(t, spec.Com.Proxy)
+	require.NotNil(t, spec.Com.MixCoord)
+	require.NotNil(t, spec.Com.DataNode)
+	require.NotNil(t, spec.Com.QueryNode)
+	require.NotNil(t, spec.Com.StreamingNode)
+}
+
+func TestBuildMilvusSpecComponentResources(t *testing.T) {
+	c := newTestContext(t, corev1alpha1.InstanceSpec{
+		Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+		Components: map[string]corev1alpha1.ComponentSpec{
+			common.ComponentDataNode: {
+				Resources: resources(t,
+					map[corev1.ResourceName]string{"cpu": "2", "memory": "4Gi"},
+					map[corev1.ResourceName]string{"cpu": "1", "memory": "2Gi"}),
+			},
+		},
+	})
+	spec, err := BuildMilvusSpec(c)
+	require.NoError(t, err)
+	require.NotNil(t, spec.Com.DataNode)
+	res := spec.Com.DataNode.Resources
+	require.NotNil(t, res)
+	// Both limits and requests flow through, not just limits.
+	assert.Equal(t, "2", res.Limits.Cpu().String())
+	assert.Equal(t, "4Gi", res.Limits.Memory().String())
+	assert.Equal(t, "1", res.Requests.Cpu().String())
+	assert.Equal(t, "2Gi", res.Requests.Memory().String())
 }
 
 func TestSyncSeedsAuthAndStatusSurfacesCredentials(t *testing.T) {

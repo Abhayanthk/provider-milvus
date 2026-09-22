@@ -528,37 +528,6 @@ spec:
           components:
             bookkeeper:
               components:
-                advanced:
-                  components:
-                    volumes:
-                      components:
-                        journal:
-                          fieldParams:
-                            badge: Gi
-                            badgeToApi: true
-                            defaultValue: 5
-                            label: Journal
-                          path: spec.topology.parameters.dependencies.pulsar.bookkeeper.journal.size
-                          uiType: number
-                          validation:
-                            int: true
-                            min: 1
-                        ledgers:
-                          fieldParams:
-                            badge: Gi
-                            badgeToApi: true
-                            defaultValue: 10
-                            label: Ledgers
-                          path: spec.topology.parameters.dependencies.pulsar.bookkeeper.ledgers.size
-                          uiType: number
-                          validation:
-                            int: true
-                            min: 1
-                      groupType: line
-                      uiType: group
-                  groupType: accordion
-                  label: Advanced
-                  uiType: group
                 replicas:
                   fieldParams:
                     defaultValue: 2
@@ -592,10 +561,36 @@ spec:
                         min: 0.1
                   groupType: line
                   uiType: group
+                volumes:
+                  components:
+                    journal:
+                      fieldParams:
+                        badge: Gi
+                        badgeToApi: true
+                        defaultValue: 5
+                        label: Journal
+                      path: spec.topology.parameters.dependencies.pulsar.bookkeeper.journal.size
+                      uiType: number
+                      validation:
+                        int: true
+                        min: 1
+                    ledgers:
+                      fieldParams:
+                        badge: Gi
+                        badgeToApi: true
+                        defaultValue: 10
+                        label: Ledgers
+                      path: spec.topology.parameters.dependencies.pulsar.bookkeeper.ledgers.size
+                      uiType: number
+                      validation:
+                        int: true
+                        min: 1
+                  groupType: line
+                  uiType: group
               componentsOrder:
                 - replicas
                 - resources
-                - advanced
+                - volumes
               groupType: accordion
               label: BookKeeper
               uiType: group
@@ -683,22 +678,6 @@ spec:
               uiType: group
             zookeeper:
               components:
-                advanced:
-                  components:
-                    data:
-                      fieldParams:
-                        badge: Gi
-                        badgeToApi: true
-                        defaultValue: 5
-                        label: Data
-                      path: spec.topology.parameters.dependencies.pulsar.zookeeper.data.size
-                      uiType: number
-                      validation:
-                        int: true
-                        min: 1
-                  groupType: accordion
-                  label: Advanced
-                  uiType: group
                 replicas:
                   fieldParams:
                     defaultValue: 1
@@ -732,10 +711,25 @@ spec:
                         min: 0.1
                   groupType: line
                   uiType: group
+                volumes:
+                  components:
+                    data:
+                      fieldParams:
+                        badge: Gi
+                        badgeToApi: true
+                        defaultValue: 5
+                        label: Data
+                      path: spec.topology.parameters.dependencies.pulsar.zookeeper.data.size
+                      uiType: number
+                      validation:
+                        int: true
+                        min: 1
+                  groupType: line
+                  uiType: group
               componentsOrder:
                 - replicas
                 - resources
-                - advanced
+                - volumes
               groupType: accordion
               label: ZooKeeper
               uiType: group

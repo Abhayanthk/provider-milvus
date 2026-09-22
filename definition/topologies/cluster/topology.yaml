@@ -418,41 +418,36 @@ ui:
                     badgeToApi: true
                   validation:
                     min: 0.1
-            advanced:
+            volumes:
               uiType: group
-              groupType: accordion
-              label: Advanced
+              groupType: line
               components:
-                volumes:
-                  uiType: group
-                  groupType: line
-                  components:
-                    journal:
-                      path: spec.topology.parameters.dependencies.pulsar.bookkeeper.journal.size
-                      uiType: number
-                      fieldParams:
-                        label: Journal
-                        defaultValue: 5
-                        badge: Gi
-                        badgeToApi: true
-                      validation:
-                        min: 1
-                        int: true
-                    ledgers:
-                      path: spec.topology.parameters.dependencies.pulsar.bookkeeper.ledgers.size
-                      uiType: number
-                      fieldParams:
-                        label: Ledgers
-                        defaultValue: 10
-                        badge: Gi
-                        badgeToApi: true
-                      validation:
-                        min: 1
-                        int: true
+                journal:
+                  path: spec.topology.parameters.dependencies.pulsar.bookkeeper.journal.size
+                  uiType: number
+                  fieldParams:
+                    label: Journal
+                    defaultValue: 5
+                    badge: Gi
+                    badgeToApi: true
+                  validation:
+                    min: 1
+                    int: true
+                ledgers:
+                  path: spec.topology.parameters.dependencies.pulsar.bookkeeper.ledgers.size
+                  uiType: number
+                  fieldParams:
+                    label: Ledgers
+                    defaultValue: 10
+                    badge: Gi
+                    badgeToApi: true
+                  validation:
+                    min: 1
+                    int: true
           componentsOrder:
             - replicas
             - resources
-            - advanced
+            - volumes
         zookeeper:
           uiType: group
           groupType: accordion
@@ -491,10 +486,9 @@ ui:
                     badgeToApi: true
                   validation:
                     min: 0.1
-            advanced:
+            volumes:
               uiType: group
-              groupType: accordion
-              label: Advanced
+              groupType: line
               components:
                 data:
                   path: spec.topology.parameters.dependencies.pulsar.zookeeper.data.size
@@ -510,7 +504,7 @@ ui:
           componentsOrder:
             - replicas
             - resources
-            - advanced
+            - volumes
         proxy:
           uiType: group
           groupType: accordion

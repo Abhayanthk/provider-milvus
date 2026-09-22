@@ -27,10 +27,7 @@ var (
 // clusterCoordinators are the coordinator components required to have at least
 // one replica in cluster mode.
 var clusterCoordinators = []string{
-	common.ComponentRootCoord,
-	common.ComponentIndexCoord,
-	common.ComponentDataCoord,
-	common.ComponentQueryCoord,
+	common.ComponentMixCoord,
 }
 
 // allowedComponentsForTopology returns the component names valid for the given
@@ -39,13 +36,10 @@ func allowedComponentsForTopology(topologyType string) []string {
 	if topologyType == "cluster" {
 		return []string{
 			common.ComponentProxy,
-			common.ComponentRootCoord,
-			common.ComponentIndexCoord,
-			common.ComponentDataCoord,
-			common.ComponentQueryCoord,
-			common.ComponentIndexNode,
+			common.ComponentMixCoord,
 			common.ComponentDataNode,
 			common.ComponentQueryNode,
+			common.ComponentStreaming,
 		}
 	}
 	return []string{common.ComponentStandalone}
@@ -319,7 +313,10 @@ func validateEtcdDependency(etcd *dependencies.Etcd) error {
 	if err := validateDependencyReplicas("etcd", etcd.Replicas); err != nil {
 		return err
 	}
-	return validateDependencyResources("etcd", etcd.Resources)
+	if err := validateDependencyResources("etcd", etcd.Resources); err != nil {
+		return err
+	}
+	return validatePersistence("etcd.persistence", etcd.Persistence)
 }
 
 func validatePulsarDependency(pulsar *dependencies.Pulsar) error {
@@ -332,25 +329,50 @@ func validatePulsarDependency(pulsar *dependencies.Pulsar) error {
 		}
 		return nil
 	}
-	components := map[string]*dependencies.PulsarComponent{
-		"pulsar.broker":     pulsar.Broker,
-		"pulsar.bookkeeper": pulsar.BookKeeper,
-		"pulsar.zookeeper":  pulsar.ZooKeeper,
-		"pulsar.proxy":      pulsar.Proxy,
+	if err := validatePulsarComponent("pulsar.broker", pulsar.Broker); err != nil {
+		return err
 	}
-	for _, name := range []string{"pulsar.broker", "pulsar.bookkeeper", "pulsar.zookeeper", "pulsar.proxy"} {
-		component := components[name]
-		if component == nil {
-			continue
-		}
-		if err := validateDependencyReplicas(name, component.Replicas); err != nil {
+	if err := validatePulsarComponent("pulsar.proxy", pulsar.Proxy); err != nil {
+		return err
+	}
+	if bk := pulsar.BookKeeper; bk != nil {
+		if err := validateDependencyReplicas("pulsar.bookkeeper", bk.Replicas); err != nil {
 			return err
 		}
-		if err := validateDependencyResources(name, component.Resources); err != nil {
+		if err := validateDependencyResources("pulsar.bookkeeper", bk.Resources); err != nil {
+			return err
+		}
+		if err := validatePersistence("pulsar.bookkeeper.journal", bk.Journal); err != nil {
+			return err
+		}
+		if err := validatePersistence("pulsar.bookkeeper.ledgers", bk.Ledgers); err != nil {
+			return err
+		}
+	}
+	if zk := pulsar.ZooKeeper; zk != nil {
+		if err := validateDependencyReplicas("pulsar.zookeeper", zk.Replicas); err != nil {
+			return err
+		}
+		if err := validateDependencyResources("pulsar.zookeeper", zk.Resources); err != nil {
+			return err
+		}
+		if err := validatePersistence("pulsar.zookeeper.data", zk.Data); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// validatePulsarComponent validates a stateless Pulsar sub-component (broker or
+// proxy).
+func validatePulsarComponent(name string, component *dependencies.PulsarComponent) error {
+	if component == nil {
+		return nil
+	}
+	if err := validateDependencyReplicas(name, component.Replicas); err != nil {
+		return err
+	}
+	return validateDependencyResources(name, component.Resources)
 }
 
 func validateStorageDependency(storage *dependencies.Storage) error {
@@ -366,7 +388,26 @@ func validateStorageDependency(storage *dependencies.Storage) error {
 	if err := validateDependencyReplicas("storage", storage.Replicas); err != nil {
 		return err
 	}
-	return validateDependencyResources("storage", storage.Resources)
+	if err := validateDependencyResources("storage", storage.Resources); err != nil {
+		return err
+	}
+	return validatePersistence("storage.persistence", storage.Persistence)
+}
+
+// validatePersistence enforces the minimum PVC size when a dependency
+// persistence size is specified.
+func validatePersistence(name string, persistence *dependencies.Persistence) error {
+	if persistence == nil || persistence.Size == "" {
+		return nil
+	}
+	size, err := resource.ParseQuantity(persistence.Size)
+	if err != nil {
+		return fmt.Errorf("%s.size %q is invalid: %w", name, persistence.Size, err)
+	}
+	if size.Cmp(minStorageSize) < 0 {
+		return fmt.Errorf("%s.size must be >= %s", name, minStorageSize.String())
+	}
+	return nil
 }
 
 func validateDependencyReplicas(name string, replicas *int32) error {

@@ -18,6 +18,41 @@ spec:
   version: "2.6.11"
   topology:
     type: cluster
+    # Tune the operator-managed dependencies (etcd, Pulsar, MinIO). Every field
+    # is optional; unset fields fall back to the provider's modest defaults.
+    parameters:
+      dependencies:
+        etcd:
+          replicas: 3
+          resources:
+            requests:
+              cpu: "100m"
+              memory: 256Mi
+          persistence:
+            size: 10Gi
+        storage:
+          replicas: 1
+          resources:
+            requests:
+              cpu: "100m"
+              memory: 256Mi
+          persistence:
+            size: 10Gi
+        pulsar:
+          broker:
+            replicas: 1
+          bookkeeper:
+            replicas: 2
+            journal:
+              size: 5Gi
+            ledgers:
+              size: 10Gi
+          zookeeper:
+            replicas: 1
+            data:
+              size: 5Gi
+          proxy:
+            replicas: 1
   components:
     proxy:
       type: milvus
@@ -26,19 +61,7 @@ spec:
         limits:
           cpu: "1"
           memory: 2Gi
-    rootCoord:
-      type: milvus
-      replicas: 1
-    indexCoord:
-      type: milvus
-      replicas: 1
-    dataCoord:
-      type: milvus
-      replicas: 1
-    queryCoord:
-      type: milvus
-      replicas: 1
-    indexNode:
+    mixCoord:
       type: milvus
       replicas: 1
     dataNode:
@@ -59,3 +82,6 @@ spec:
           memory: 4Gi
       storage:
         size: 20Gi
+    streamingNode:
+      type: milvus
+      replicas: 1

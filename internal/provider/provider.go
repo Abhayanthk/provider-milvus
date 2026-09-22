@@ -231,29 +231,21 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 	}
 	applyServiceExposure(&spec.Com.Proxy.ServiceComponent, instance.Spec.Components[common.ComponentProxy].Service)
 
-	for _, name := range []string{common.ComponentRootCoord, common.ComponentIndexCoord, common.ComponentDataCoord, common.ComponentQueryCoord} {
-		replicas := componentReplicasOrDefault(instance.Spec.Components, name, 1)
-		switch name {
-		case common.ComponentRootCoord:
-			spec.Com.RootCoord = &milvusapi.MilvusRootCoord{Component: milvusapi.Component{ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion), Replicas: replicas}}
-		case common.ComponentIndexCoord:
-			spec.Com.IndexCoord = &milvusapi.MilvusIndexCoord{Component: milvusapi.Component{ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion), Replicas: replicas}}
-		case common.ComponentDataCoord:
-			spec.Com.DataCoord = &milvusapi.MilvusDataCoord{Component: milvusapi.Component{ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion), Replicas: replicas}}
-		case common.ComponentQueryCoord:
-			spec.Com.QueryCoord = &milvusapi.MilvusQueryCoord{Component: milvusapi.Component{ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion), Replicas: replicas}}
-		}
-	}
+	spec.Com.MixCoord = &milvusapi.MilvusMixCoord{Component: milvusapi.Component{
+		ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, common.ComponentMixCoord, baseImage, resolvedVersion),
+		Replicas:      componentReplicasOrDefault(instance.Spec.Components, common.ComponentMixCoord, 1),
+	}}
 
-	for _, name := range []string{common.ComponentIndexNode, common.ComponentDataNode, common.ComponentQueryNode} {
+	for _, name := range []string{common.ComponentDataNode, common.ComponentQueryNode, common.ComponentStreaming} {
 		replicas := componentReplicasOrDefault(instance.Spec.Components, name, 1)
+		componentSpec := makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion)
 		switch name {
-		case common.ComponentIndexNode:
-			spec.Com.IndexNode = &milvusapi.MilvusIndexNode{Component: milvusapi.Component{ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion), Replicas: replicas}}
 		case common.ComponentDataNode:
-			spec.Com.DataNode = &milvusapi.MilvusDataNode{Component: milvusapi.Component{ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion), Replicas: replicas}}
+			spec.Com.DataNode = &milvusapi.MilvusDataNode{Component: milvusapi.Component{ComponentSpec: componentSpec, Replicas: replicas}}
 		case common.ComponentQueryNode:
-			spec.Com.QueryNode = &milvusapi.MilvusQueryNode{Component: milvusapi.Component{ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion), Replicas: replicas}}
+			spec.Com.QueryNode = &milvusapi.MilvusQueryNode{Component: milvusapi.Component{ComponentSpec: componentSpec, Replicas: replicas}}
+		case common.ComponentStreaming:
+			spec.Com.StreamingNode = &milvusapi.MilvusStreamingNode{Component: milvusapi.Component{ComponentSpec: componentSpec, Replicas: replicas}}
 		}
 	}
 	spec.Dep = buildDependencies(c, topologyType, storageSizeFromComponents(instance.Spec.Components, common.ComponentDataNode, common.ComponentQueryNode))

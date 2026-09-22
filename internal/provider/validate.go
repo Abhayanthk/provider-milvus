@@ -27,10 +27,7 @@ var (
 // clusterCoordinators are the coordinator components required to have at least
 // one replica in cluster mode.
 var clusterCoordinators = []string{
-	common.ComponentRootCoord,
-	common.ComponentIndexCoord,
-	common.ComponentDataCoord,
-	common.ComponentQueryCoord,
+	common.ComponentMixCoord,
 }
 
 // allowedComponentsForTopology returns the component names valid for the given
@@ -39,13 +36,10 @@ func allowedComponentsForTopology(topologyType string) []string {
 	if topologyType == "cluster" {
 		return []string{
 			common.ComponentProxy,
-			common.ComponentRootCoord,
-			common.ComponentIndexCoord,
-			common.ComponentDataCoord,
-			common.ComponentQueryCoord,
-			common.ComponentIndexNode,
+			common.ComponentMixCoord,
 			common.ComponentDataNode,
 			common.ComponentQueryNode,
+			common.ComponentStreaming,
 		}
 	}
 	return []string{common.ComponentStandalone}

@@ -103,13 +103,6 @@ spec:
   topologies:
     cluster:
       components:
-        dataCoord:
-          supportedFields:
-            openAPIV3Schema:
-              properties:
-                replicas:
-                  minimum: 1
-                resources: {}
         dataNode:
           supportedFields:
             openAPIV3Schema:
@@ -120,14 +113,7 @@ spec:
                 storage: {}
               required:
                 - storage
-        indexCoord:
-          supportedFields:
-            openAPIV3Schema:
-              properties:
-                replicas:
-                  minimum: 1
-                resources: {}
-        indexNode:
+        mixCoord:
           supportedFields:
             openAPIV3Schema:
               properties:
@@ -142,13 +128,6 @@ spec:
                   minimum: 1
                 resources: {}
                 service: {}
-        queryCoord:
-          supportedFields:
-            openAPIV3Schema:
-              properties:
-                replicas:
-                  minimum: 1
-                resources: {}
         queryNode:
           supportedFields:
             openAPIV3Schema:
@@ -159,7 +138,7 @@ spec:
                 storage: {}
               required:
                 - storage
-        rootCoord:
+        streamingNode:
           supportedFields:
             openAPIV3Schema:
               properties:
@@ -474,6 +453,45 @@ spec:
               uiType: select
           description: Configure the cluster Milvus deployment.
           label: Basic Information
+        coordinator:
+          components:
+            replicas:
+              fieldParams:
+                defaultValue: 1
+                label: Replicas
+              path: spec.components.mixCoord.replicas
+              uiType: number
+              validation:
+                min: 1
+            resources:
+              components:
+                cpu:
+                  fieldParams:
+                    defaultValue: 1
+                    label: CPU
+                    step: 0.1
+                  path: spec.components.mixCoord.resources.limits.cpu
+                  uiType: number
+                  validation:
+                    min: 0.1
+                memory:
+                  fieldParams:
+                    badge: Gi
+                    badgeToApi: true
+                    defaultValue: 2
+                    label: RAM
+                    step: 0.1
+                  path: spec.components.mixCoord.resources.limits.memory
+                  uiType: number
+                  validation:
+                    min: 0.5
+              groupType: line
+              uiType: group
+          componentsOrder:
+            - replicas
+            - resources
+          description: Configure the Milvus coordinator.
+          label: Coordinator
         dataNodes:
           components:
             replicas:
@@ -750,8 +768,8 @@ spec:
             - bookkeeper
             - zookeeper
             - proxy
-          description: Configure the bundled Pulsar message stream.
-          label: Message stream (Pulsar)
+          description: Configure the bundled message stream.
+          label: Message stream
         metadataStore:
           components:
             replicas:
@@ -801,8 +819,8 @@ spec:
           componentsOrder:
             - replicas
             - resources
-          description: Configure the bundled etcd cluster that stores Milvus metadata.
-          label: Metadata store (etcd)
+          description: Configure the bundled metadata store.
+          label: Metadata store
         objectStorage:
           components:
             replicas:
@@ -957,11 +975,52 @@ spec:
             - resources
           description: Configure the query nodes.
           label: Query nodes
+        streamingNodes:
+          components:
+            replicas:
+              fieldParams:
+                defaultValue: 1
+                label: Replicas
+              path: spec.components.streamingNode.replicas
+              uiType: number
+              validation:
+                min: 1
+            resources:
+              components:
+                cpu:
+                  fieldParams:
+                    defaultValue: 1
+                    label: CPU
+                    step: 0.1
+                  path: spec.components.streamingNode.resources.limits.cpu
+                  uiType: number
+                  validation:
+                    min: 0.1
+                memory:
+                  fieldParams:
+                    badge: Gi
+                    badgeToApi: true
+                    defaultValue: 2
+                    label: RAM
+                    step: 0.1
+                  path: spec.components.streamingNode.resources.limits.memory
+                  uiType: number
+                  validation:
+                    min: 0.5
+              groupType: line
+              uiType: group
+          componentsOrder:
+            - replicas
+            - resources
+          description: Configure the streaming nodes.
+          label: Streaming nodes
       sectionsOrder:
         - basicInfo
         - dataNodes
         - proxy
         - queryNodes
+        - coordinator
+        - streamingNodes
         - objectStorage
         - metadataStore
         - messageStream
@@ -1049,8 +1108,8 @@ spec:
           componentsOrder:
             - replicas
             - resources
-          description: Configure the bundled etcd cluster that stores Milvus metadata.
-          label: Metadata store (etcd)
+          description: Configure the bundled metadata store.
+          label: Metadata store
         objectStorage:
           components:
             replicas:
@@ -1167,29 +1226,19 @@ spec:
         - advanced
   versions:
     - components:
-        dataCoord: 2.6.11
         dataNode: 2.6.11
-        indexCoord: 2.6.11
-        indexNode: 2.6.11
         mixCoord: 2.6.11
         proxy: 2.6.11
-        queryCoord: 2.6.11
         queryNode: 2.6.11
-        rootCoord: 2.6.11
         standalone: 2.6.11
         streamingNode: 2.6.11
       default: true
       name: 2.6.11
     - components:
-        dataCoord: 2.6.10
         dataNode: 2.6.10
-        indexCoord: 2.6.10
-        indexNode: 2.6.10
         mixCoord: 2.6.10
         proxy: 2.6.10
-        queryCoord: 2.6.10
         queryNode: 2.6.10
-        rootCoord: 2.6.10
         standalone: 2.6.10
         streamingNode: 2.6.10
       name: 2.6.10

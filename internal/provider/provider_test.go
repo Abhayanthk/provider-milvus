@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -272,6 +273,40 @@ func TestBuildMilvusSpec_TopologyAndResources(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid configuration")
 	})
+
+	t.Run("missing provider CR returns error", func(t *testing.T) {
+		scheme := runtime.NewScheme()
+		require.NoError(t, corev1alpha1.AddToScheme(scheme))
+		require.NoError(t, milvusapi.AddToScheme(scheme))
+
+		instance := &corev1alpha1.Instance{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-milvus", Namespace: "db"},
+		}
+		fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(instance).Build()
+		c := controller.NewContext(context.Background(), fakeClient, instance, common.ProviderName)
+
+		_, err := BuildMilvusSpec(c)
+		require.Error(t, err)
+	})
+
+	t.Run("component resource limits are propagated", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{
+			Topology: &corev1alpha1.TopologySpec{Type: "standalone"},
+			Components: map[string]corev1alpha1.ComponentSpec{
+				common.ComponentStandalone: {
+					Resources: &corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("2"),
+						},
+					},
+				},
+			},
+		})
+		spec, err := BuildMilvusSpec(c)
+		require.NoError(t, err)
+		require.NotNil(t, spec.Com.Standalone.ComponentSpec.Resources)
+		assert.Equal(t, resource.MustParse("2"), spec.Com.Standalone.ComponentSpec.Resources.Limits[corev1.ResourceCPU])
+	})
 }
 
 func newMilvusCR(status milvusapi.MilvusHealthStatus, endpoint string) *milvusapi.Milvus {
@@ -338,5 +373,77 @@ func TestProvider_Status(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, corev1alpha1.InstancePhasePending, status.Phase)
+	})
+
+	t.Run("unhealthy status returns Provisioning", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{})
+
+		cr := newMilvusCR(milvusapi.StatusUnhealthy, "")
+		require.NoError(t, c.Client().Create(context.Background(), cr))
+
+		p := &Provider{}
+		status, err := p.Status(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, corev1alpha1.InstancePhaseProvisioning, status.Phase)
+		assert.Contains(t, status.Message, "Milvus is unhealthy")
+	})
+
+	t.Run("pending status returns Provisioning", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{})
+
+		cr := newMilvusCR(milvusapi.StatusPending, "")
+		require.NoError(t, c.Client().Create(context.Background(), cr))
+
+		p := &Provider{}
+		status, err := p.Status(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, corev1alpha1.InstancePhaseProvisioning, status.Phase)
+		assert.Contains(t, status.Message, "Milvus is being initialized or updated")
+	})
+
+	t.Run("deleting status returns Provisioning", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{})
+
+		cr := newMilvusCR(milvusapi.StatusDeleting, "")
+		require.NoError(t, c.Client().Create(context.Background(), cr))
+
+		p := &Provider{}
+		status, err := p.Status(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, corev1alpha1.InstancePhaseProvisioning, status.Phase)
+		assert.Contains(t, status.Message, "Milvus is being initialized or updated")
+	})
+
+	t.Run("unknown status returns Provisioning initializing", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{})
+
+		cr := newMilvusCR("UnknownStatus", "")
+		require.NoError(t, c.Client().Create(context.Background(), cr))
+
+		p := &Provider{}
+		status, err := p.Status(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, corev1alpha1.InstancePhaseProvisioning, status.Phase)
+		assert.Contains(t, status.Message, "Milvus is initializing")
+	})
+
+	t.Run("healthy status with empty endpoint builds default endpoint", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{})
+
+		cr := newMilvusCR(milvusapi.StatusHealthy, "")
+		require.NoError(t, c.Client().Create(context.Background(), cr))
+
+		p := &Provider{}
+		status, err := p.Status(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, corev1alpha1.InstancePhaseReady, status.Phase)
+		require.NotNil(t, status.ConnectionDetails)
+		assert.Equal(t, "test-milvus.db.svc.cluster.local", status.ConnectionDetails.Host)
+		assert.Equal(t, "19530", status.ConnectionDetails.Port)
 	})
 }

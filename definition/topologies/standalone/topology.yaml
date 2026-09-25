@@ -1,5 +1,8 @@
 # Standalone topology definition for Milvus.
 config:
+  # parametersSchema references a Go type in definition/topologies/standalone
+  # for topology parameters (bundled dependency sizing and external overrides).
+  parametersSchema: StandaloneTopologyParameters
   components:
     standalone:
       type: milvus
@@ -10,6 +13,7 @@ config:
           replicas: {minimum: 1}
           resources: {}
           storage: {}
+          service: {}
 ui:
   sections:
     basicInfo:
@@ -69,6 +73,121 @@ ui:
           validation:
             min: 0.5
             required: true
+        externalAccess:
+          uiType: select
+          path: spec.components.standalone.service.serviceType
+          fieldParams:
+            label: External access
+            defaultValue: ClusterIP
+            options:
+              - label: ClusterIP
+                value: ClusterIP
+              - label: NodePort
+                value: NodePort
+              - label: LoadBalancer
+                value: LoadBalancer
+    objectStorage:
+      label: Object storage
+      description: Configure the bundled object storage that holds Milvus data.
+      components:
+        replicas:
+          path: spec.topology.parameters.dependencies.storage.replicas
+          uiType: number
+          fieldParams:
+            label: Replicas
+            defaultValue: 1
+          validation:
+            min: 1
+            int: true
+        resources:
+          uiType: group
+          groupType: line
+          components:
+            cpu:
+              path: spec.topology.parameters.dependencies.storage.resources.requests.cpu
+              uiType: number
+              fieldParams:
+                label: CPU
+                defaultValue: 0.1
+                step: 0.1
+              validation:
+                min: 0.1
+            memory:
+              path: spec.topology.parameters.dependencies.storage.resources.requests.memory
+              uiType: number
+              fieldParams:
+                label: RAM
+                defaultValue: 0.25
+                step: 0.1
+                badge: Gi
+                badgeToApi: true
+              validation:
+                min: 0.1
+            storage:
+              path: spec.topology.parameters.dependencies.storage.persistence.size
+              uiType: number
+              fieldParams:
+                label: Storage
+                defaultValue: 10
+                badge: Gi
+                badgeToApi: true
+              validation:
+                min: 1
+                int: true
+      componentsOrder:
+        - replicas
+        - resources
+    metadataStore:
+      label: Metadata store
+      description: Configure the bundled metadata store.
+      components:
+        replicas:
+          path: spec.topology.parameters.dependencies.etcd.replicas
+          uiType: number
+          fieldParams:
+            label: Replicas
+            defaultValue: 1
+          validation:
+            min: 1
+            int: true
+        resources:
+          uiType: group
+          groupType: line
+          components:
+            cpu:
+              path: spec.topology.parameters.dependencies.etcd.resources.requests.cpu
+              uiType: number
+              fieldParams:
+                label: CPU
+                defaultValue: 0.1
+                step: 0.1
+              validation:
+                min: 0.1
+            memory:
+              path: spec.topology.parameters.dependencies.etcd.resources.requests.memory
+              uiType: number
+              fieldParams:
+                label: RAM
+                defaultValue: 0.25
+                step: 0.1
+                badge: Gi
+                badgeToApi: true
+              validation:
+                min: 0.1
+            storage:
+              path: spec.topology.parameters.dependencies.etcd.persistence.size
+              uiType: number
+              fieldParams:
+                label: Storage
+                defaultValue: 10
+                badge: Gi
+                badgeToApi: true
+              validation:
+                min: 1
+                int: true
+      componentsOrder:
+        - replicas
+        - resources
     advanced:
       label: "Advanced configuration"
       description: "Configure advanced Milvus engine settings."
@@ -91,4 +210,6 @@ ui:
   sectionsOrder:
     - basicInfo
     - resources
+    - objectStorage
+    - metadataStore
     - advanced

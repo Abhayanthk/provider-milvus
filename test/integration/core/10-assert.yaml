@@ -10,12 +10,38 @@ metadata:
 spec:
   providerRef:
     name: milvus
-# TODO: assert the operator-native CR produced by Sync(), e.g.:
-# ---
-# apiVersion: <operator-api-group>/v1
-# kind: <OperatorKind>
-# metadata:
-#   name: test-instance
-# spec:
-#   replicas: 1
-#   ...
+---
+apiVersion: milvus.io/v1beta1
+kind: Milvus
+metadata:
+  name: test-instance
+spec:
+  mode: standalone
+  components:
+    standalone:
+      replicas: 1
+      resources:
+        limits:
+          cpu: "1"
+          memory: 1G
+  config:
+    common:
+      security:
+        authorizationEnabled: true
+        (defaultRootPassword != null): true
+  dependencies:
+    storage:
+      inCluster:
+        values:
+          persistence:
+            size: 10Gi
+---
+# The provider generates and persists the root credential on first reconcile.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-instance-credentials
+type: Opaque
+data:
+  username: cm9vdA==
+  (password != null): true

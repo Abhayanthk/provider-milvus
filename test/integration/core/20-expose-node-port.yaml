@@ -1,14 +1,13 @@
-# Minimal Instance CR — smallest viable standalone Milvus.
+# Switch the standalone instance to NodePort exposure.
 apiVersion: core.openeverest.io/v1alpha1
 kind: Instance
 metadata:
-  name: milvus-standalone-simple
+  name: test-instance
 spec:
   providerRef:
     name: milvus
   components:
     standalone:
       type: milvus
-      replicas: 1
-      storage:
-        size: 10Gi
+      service:
+        serviceType: NodePort

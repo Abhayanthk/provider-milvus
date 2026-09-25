@@ -64,13 +64,14 @@ func componentReplicasOrDefault(components map[string]corev1alpha1.ComponentSpec
 	return makeComponentReplica(defaultReplicas)
 }
 
-func componentResourceLimitsOrNil(components map[string]corev1alpha1.ComponentSpec, name string) *corev1.ResourceRequirements {
+func componentResourcesOrNil(components map[string]corev1alpha1.ComponentSpec, name string) *corev1.ResourceRequirements {
 	component := components[name]
-	if component.Resources == nil || len(component.Resources.Limits) == 0 {
+	if component.Resources == nil || (len(component.Resources.Limits) == 0 && len(component.Resources.Requests) == 0) {
 		return nil
 	}
 	return &corev1.ResourceRequirements{
-		Limits: component.Resources.Limits.DeepCopy(),
+		Limits:   component.Resources.Limits.DeepCopy(),
+		Requests: component.Resources.Requests.DeepCopy(),
 	}
 }
 
@@ -95,25 +96,7 @@ func makeMilvusComponentSpec(components map[string]corev1alpha1.ComponentSpec, n
 	return milvusapi.ComponentSpec{
 		Image:     image,
 		Version:   version,
-		Resources: componentResourceLimitsOrNil(components, name),
-	}
-}
-
-func setDependencyStorageSize(spec *milvusapi.MilvusSpec, size string) {
-	if size == "" {
-		return
-	}
-	if spec.Dep == nil {
-		spec.Dep = &milvusapi.MilvusDependencies{}
-	}
-	if spec.Dep.Storage.InCluster == nil {
-		spec.Dep.Storage.InCluster = &milvusapi.InClusterConfig{}
-	}
-	if spec.Dep.Storage.InCluster.Values == nil {
-		spec.Dep.Storage.InCluster.Values = milvusapi.Values{}
-	}
-	spec.Dep.Storage.InCluster.Values["persistence"] = map[string]any{
-		"size": size,
+		Resources: componentResourcesOrNil(components, name),
 	}
 }
 
@@ -232,7 +215,8 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 				Port: 19530,
 			},
 		}
-		setDependencyStorageSize(&spec, storageSizeFromComponent(instance.Spec.Components, common.ComponentStandalone))
+		applyServiceExposure(&spec.Com.Standalone.ServiceComponent, instance.Spec.Components[common.ComponentStandalone].Service)
+		spec.Dep = buildDependencies(c, topologyType, storageSizeFromComponent(instance.Spec.Components, common.ComponentStandalone))
 		return spec, nil
 	}
 
@@ -245,33 +229,26 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 			Port: 19530,
 		},
 	}
+	applyServiceExposure(&spec.Com.Proxy.ServiceComponent, instance.Spec.Components[common.ComponentProxy].Service)
 
-	for _, name := range []string{common.ComponentRootCoord, common.ComponentIndexCoord, common.ComponentDataCoord, common.ComponentQueryCoord} {
-		replicas := componentReplicasOrDefault(instance.Spec.Components, name, 1)
-		switch name {
-		case common.ComponentRootCoord:
-			spec.Com.RootCoord = &milvusapi.MilvusRootCoord{Component: milvusapi.Component{ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion), Replicas: replicas}}
-		case common.ComponentIndexCoord:
-			spec.Com.IndexCoord = &milvusapi.MilvusIndexCoord{Component: milvusapi.Component{ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion), Replicas: replicas}}
-		case common.ComponentDataCoord:
-			spec.Com.DataCoord = &milvusapi.MilvusDataCoord{Component: milvusapi.Component{ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion), Replicas: replicas}}
-		case common.ComponentQueryCoord:
-			spec.Com.QueryCoord = &milvusapi.MilvusQueryCoord{Component: milvusapi.Component{ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion), Replicas: replicas}}
-		}
-	}
+	spec.Com.MixCoord = &milvusapi.MilvusMixCoord{Component: milvusapi.Component{
+		ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, common.ComponentMixCoord, baseImage, resolvedVersion),
+		Replicas:      componentReplicasOrDefault(instance.Spec.Components, common.ComponentMixCoord, 1),
+	}}
 
-	for _, name := range []string{common.ComponentIndexNode, common.ComponentDataNode, common.ComponentQueryNode} {
+	for _, name := range []string{common.ComponentDataNode, common.ComponentQueryNode, common.ComponentStreaming} {
 		replicas := componentReplicasOrDefault(instance.Spec.Components, name, 1)
+		componentSpec := makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion)
 		switch name {
-		case common.ComponentIndexNode:
-			spec.Com.IndexNode = &milvusapi.MilvusIndexNode{Component: milvusapi.Component{ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion), Replicas: replicas}}
 		case common.ComponentDataNode:
-			spec.Com.DataNode = &milvusapi.MilvusDataNode{Component: milvusapi.Component{ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion), Replicas: replicas}}
+			spec.Com.DataNode = &milvusapi.MilvusDataNode{Component: milvusapi.Component{ComponentSpec: componentSpec, Replicas: replicas}}
 		case common.ComponentQueryNode:
-			spec.Com.QueryNode = &milvusapi.MilvusQueryNode{Component: milvusapi.Component{ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion), Replicas: replicas}}
+			spec.Com.QueryNode = &milvusapi.MilvusQueryNode{Component: milvusapi.Component{ComponentSpec: componentSpec, Replicas: replicas}}
+		case common.ComponentStreaming:
+			spec.Com.StreamingNode = &milvusapi.MilvusStreamingNode{Component: milvusapi.Component{ComponentSpec: componentSpec, Replicas: replicas}}
 		}
 	}
-	setDependencyStorageSize(&spec, storageSizeFromComponents(instance.Spec.Components, common.ComponentDataNode, common.ComponentQueryNode))
+	spec.Dep = buildDependencies(c, topologyType, storageSizeFromComponents(instance.Spec.Components, common.ComponentDataNode, common.ComponentQueryNode))
 
 	return spec, nil
 }
@@ -289,10 +266,16 @@ func (p *Provider) Sync(c *controller.Context) error {
 	l := log.FromContext(c.Context())
 	l.Info("Syncing instance", "name", c.Name())
 
+	_, password, err := ensureCredentials(c)
+	if err != nil {
+		return err
+	}
+
 	spec, err := BuildMilvusSpec(c)
 	if err != nil {
 		return err
 	}
+	applyAuthConfig(&spec, password)
 
 	cr := &milvusapi.Milvus{
 		ObjectMeta: c.ObjectMeta(c.Name()),
@@ -313,25 +296,27 @@ func (p *Provider) Status(c *controller.Context) (controller.Status, error) {
 
 	switch cr.Status.Status {
 	case milvusapi.StatusHealthy:
-		endpoint := cr.Status.Endpoint
-		if endpoint == "" {
-			endpoint = fmt.Sprintf("%s.%s.svc.cluster.local:19530", cr.Name, cr.Namespace)
+		host, port, ready, message := resolveEndpoint(c, cr)
+		if !ready {
+			return controller.Provisioning(message), nil
 		}
-		host, port := endpoint, "19530"
-		if idx := strings.Index(endpoint, ":"); idx >= 0 {
-			host = endpoint[:idx]
-			port = endpoint[idx+1:]
+
+		username, password, err := ensureCredentials(c)
+		if err != nil {
+			return controller.Status{}, err
 		}
-		if port == "" {
-			port = "19530"
-		}
-		uri := fmt.Sprintf("tcp://%s:%s", host, port)
+
 		return controller.ReadyWithConnectionDetails(controller.ConnectionDetails{
 			Type:     "milvus",
 			Provider: common.ProviderName,
 			Host:     host,
 			Port:     port,
-			URI:      uri,
+			Username: username,
+			Password: password,
+			URI:      fmt.Sprintf("http://%s:%s", host, port),
+			AdditionalProperties: map[string]string{
+				"token": fmt.Sprintf("%s:%s", username, password),
+			},
 		}), nil
 	case milvusapi.StatusPending, milvusapi.StatusDeleting:
 		return controller.Provisioning("Milvus is being initialized or updated"), nil

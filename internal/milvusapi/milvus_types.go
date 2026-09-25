@@ -47,6 +47,11 @@ type Component struct {
 type ServiceComponent struct {
 	Component `json:",inline"`
 	Port      int32 `json:"port,omitempty"`
+	// ServiceType controls how the operator exposes the gRPC service.
+	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
+	// ServiceAnnotations are applied to the exposed Service (e.g. cloud
+	// load-balancer settings).
+	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
 }
 
 // MilvusStandalone defines the standalone deployment component.
@@ -59,28 +64,9 @@ type MilvusProxy struct {
 	ServiceComponent `json:",inline"`
 }
 
-// MilvusRootCoord defines the root coordinator component.
-type MilvusRootCoord struct {
-	Component `json:",inline"`
-}
-
-// MilvusIndexCoord defines the index coordinator component.
-type MilvusIndexCoord struct {
-	Component `json:",inline"`
-}
-
-// MilvusDataCoord defines the data coordinator component.
-type MilvusDataCoord struct {
-	Component `json:",inline"`
-}
-
-// MilvusQueryCoord defines the query coordinator component.
-type MilvusQueryCoord struct {
-	Component `json:",inline"`
-}
-
-// MilvusIndexNode defines the index node component.
-type MilvusIndexNode struct {
+// MilvusMixCoord is the unified coordinator. Milvus 2.6 merges the former
+// root/index/data/query coordinators into this single component.
+type MilvusMixCoord struct {
 	Component `json:",inline"`
 }
 
@@ -94,19 +80,22 @@ type MilvusQueryNode struct {
 	Component `json:",inline"`
 }
 
+// MilvusStreamingNode defines the streaming node component introduced by the
+// Milvus 2.6 streaming architecture.
+type MilvusStreamingNode struct {
+	Component `json:",inline"`
+}
+
 // MilvusComponents contains the concrete Milvus deployment components.
 type MilvusComponents struct {
 	ComponentSpec    `json:",inline"`
-	Standalone       *MilvusStandalone `json:"standalone,omitempty"`
-	Proxy            *MilvusProxy      `json:"proxy,omitempty"`
-	RootCoord        *MilvusRootCoord  `json:"rootCoord,omitempty"`
-	IndexCoord       *MilvusIndexCoord `json:"indexCoord,omitempty"`
-	DataCoord        *MilvusDataCoord  `json:"dataCoord,omitempty"`
-	QueryCoord       *MilvusQueryCoord `json:"queryCoord,omitempty"`
-	IndexNode        *MilvusIndexNode  `json:"indexNode,omitempty"`
-	DataNode         *MilvusDataNode   `json:"dataNode,omitempty"`
-	QueryNode        *MilvusQueryNode  `json:"queryNode,omitempty"`
-	EnableManualMode bool              `json:"enableManualMode,omitempty"`
+	Standalone       *MilvusStandalone    `json:"standalone,omitempty"`
+	Proxy            *MilvusProxy         `json:"proxy,omitempty"`
+	MixCoord         *MilvusMixCoord      `json:"mixCoord,omitempty"`
+	DataNode         *MilvusDataNode      `json:"dataNode,omitempty"`
+	QueryNode        *MilvusQueryNode     `json:"queryNode,omitempty"`
+	StreamingNode    *MilvusStreamingNode `json:"streamingNode,omitempty"`
+	EnableManualMode bool                 `json:"enableManualMode,omitempty"`
 }
 
 // MilvusSpec is the desired state of a Milvus deployment.
@@ -127,13 +116,33 @@ type InClusterConfig struct {
 	PVCDeletion    bool   `json:"pvcDeletion,omitempty"`
 }
 
+// MilvusEtcd configures the etcd metadata store dependency.
+type MilvusEtcd struct {
+	Endpoints []string         `json:"endpoints,omitempty"`
+	External  bool             `json:"external,omitempty"`
+	InCluster *InClusterConfig `json:"inCluster,omitempty"`
+}
+
+// MilvusPulsar configures the Pulsar message-stream dependency (cluster mode).
+type MilvusPulsar struct {
+	InCluster *InClusterConfig `json:"inCluster,omitempty"`
+	External  bool             `json:"external,omitempty"`
+	Endpoint  string           `json:"endpoint,omitempty"`
+}
+
 type MilvusStorage struct {
+	Type      string           `json:"type,omitempty"`
+	SecretRef string           `json:"secretRef,omitempty"`
+	Endpoint  string           `json:"endpoint,omitempty"`
 	InCluster *InClusterConfig `json:"inCluster,omitempty"`
 	External  bool             `json:"external,omitempty"`
 }
 
 type MilvusDependencies struct {
-	Storage MilvusStorage `json:"storage,omitempty"`
+	Etcd          MilvusEtcd    `json:"etcd,omitempty"`
+	MsgStreamType string        `json:"msgStreamType,omitempty"`
+	Pulsar        MilvusPulsar  `json:"pulsar,omitempty"`
+	Storage       MilvusStorage `json:"storage,omitempty"`
 }
 
 // MilvusStatus is the observed state of a Milvus deployment.

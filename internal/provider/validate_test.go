@@ -144,7 +144,7 @@ func TestValidateInstance(t *testing.T) {
 			spec: corev1alpha1.InstanceSpec{
 				Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
 				Components: map[string]corev1alpha1.ComponentSpec{
-					common.ComponentRootCoord: {Replicas: ptr.To(int32(0))},
+					common.ComponentMixCoord: {Replicas: ptr.To(int32(0))},
 				},
 			},
 			wantErr: "replicas must be >= 1",
@@ -154,8 +154,8 @@ func TestValidateInstance(t *testing.T) {
 			spec: corev1alpha1.InstanceSpec{
 				Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
 				Components: map[string]corev1alpha1.ComponentSpec{
-					common.ComponentProxy:     {Replicas: ptr.To(int32(1))},
-					common.ComponentRootCoord: {Replicas: ptr.To(int32(1))},
+					common.ComponentProxy:    {Replicas: ptr.To(int32(1))},
+					common.ComponentMixCoord: {Replicas: ptr.To(int32(1))},
 					common.ComponentDataNode: {
 						Replicas: ptr.To(int32(2)),
 						Storage:  storage(t, "20Gi"),

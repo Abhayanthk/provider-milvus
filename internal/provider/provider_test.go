@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	corev1alpha1 "github.com/openeverest/openeverest/v2/api/core/v1alpha1"
@@ -303,6 +304,29 @@ func TestBuildMilvusSpecTopology(t *testing.T) {
 		assert.Equal(t, "2.6.11", spec.Com.Version)
 	})
 
+	t.Run("unset version resolves the default bundle and image from the Provider", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{
+			Topology: &corev1alpha1.TopologySpec{Type: "standalone"},
+		})
+		provider := &corev1alpha1.Provider{}
+		require.NoError(t, c.Client().Get(context.Background(), client.ObjectKey{Name: common.ProviderName}, provider))
+		provider.Spec = corev1alpha1.ProviderSpec{
+			ComponentTypes: map[string]corev1alpha1.ComponentType{
+				"milvus": {Versions: []corev1alpha1.ComponentVersion{{Version: "2.6.0", Image: "example.com/milvus:v2.6.0"}}},
+			},
+			Components: map[string]corev1alpha1.Component{
+				common.ComponentStandalone: {Type: "milvus"},
+			},
+			Versions: []corev1alpha1.VersionBundle{{Name: "2.6.0", Default: true}},
+		}
+		require.NoError(t, c.Client().Update(context.Background(), provider))
+
+		spec, err := BuildMilvusSpec(c)
+		require.NoError(t, err)
+		assert.Equal(t, "2.6.0", spec.Com.Version)
+		assert.Equal(t, "example.com/milvus:v2.6.0", spec.Com.Image)
+	})
+
 	t.Run("invalid configuration returns an error", func(t *testing.T) {
 		c := newTestContext(t, corev1alpha1.InstanceSpec{
 			Topology: &corev1alpha1.TopologySpec{Type: "standalone"},
@@ -398,4 +422,18 @@ func TestProviderStatus(t *testing.T) {
 			assert.Equal(t, "http://"+tt.wantHost+":"+tt.wantPort, cd.URI)
 		})
 	}
+
+	t.Run("healthy status without a load balancer address is not ready", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{})
+		cr := newMilvusCR(milvusapi.StatusHealthy, "")
+		cr.Spec.Com.Standalone = &milvusapi.MilvusStandalone{
+			ServiceComponent: milvusapi.ServiceComponent{ServiceType: corev1.ServiceTypeLoadBalancer},
+		}
+		require.NoError(t, c.Client().Create(context.Background(), cr))
+
+		status, err := New().Status(c)
+		require.NoError(t, err)
+		assert.Equal(t, corev1alpha1.InstancePhaseProvisioning, status.Phase)
+		assert.Contains(t, status.Message, "waiting for load balancer address")
+	})
 }

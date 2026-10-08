@@ -427,7 +427,15 @@ func validateStorageDependency(storage *dependencies.Storage) error {
 		if storage.Endpoint == "" {
 			return fmt.Errorf("storage.endpoint is required when storage.external is true")
 		}
-		return nil
+		if storage.CredentialsSecret == "" {
+			return fmt.Errorf("storage.credentialsSecret is required when storage.external is true")
+		}
+		switch storage.Type {
+		case "", "MinIO", "S3", "Azure":
+			return nil
+		default:
+			return fmt.Errorf("storage.type must be one of MinIO, S3 or Azure")
+		}
 	}
 	if err := validateDependencyReplicas("storage", storage.Replicas); err != nil {
 		return err

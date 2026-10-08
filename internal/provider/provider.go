@@ -193,6 +193,12 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 		return milvusapi.MilvusSpec{}, err
 	}
 	spec.Conf = engineConfig
+	if storageConfig := externalStorageConfig(storageDependencyParam(c, topologyType)); storageConfig != nil {
+		if spec.Conf == nil {
+			spec.Conf = milvusapi.Values{}
+		}
+		deepMergeValues(spec.Conf, storageConfig)
+	}
 
 	if topologyType == "standalone" {
 		spec.Com.Standalone = &milvusapi.MilvusStandalone{

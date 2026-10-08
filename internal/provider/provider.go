@@ -75,18 +75,22 @@ func componentResourcesOrNil(components map[string]corev1alpha1.ComponentSpec, n
 	}
 }
 
-// makeMilvusComponentSpec labels the component's pods so the runtime counts
-// them into the Instance's status.components.
-func makeMilvusComponentSpec(c *controller.Context, name string, image milvusImage) milvusapi.ComponentSpec {
+// makeMilvusComponent labels the component's pods so the runtime counts them
+// into the Instance's status.components.
+func makeMilvusComponent(c *controller.Context, name string, image milvusImage) milvusapi.Component {
 	components := c.Instance().Spec.Components
-	spec := milvusapi.ComponentSpec{
-		Image:     image.image,
-		Version:   image.version,
-		Resources: componentResourcesOrNil(components, name),
-		PodLabels: c.PodLabels(name),
+	component := milvusapi.Component{
+		ComponentSpec: milvusapi.ComponentSpec{
+			Image:     image.image,
+			Version:   image.version,
+			Resources: componentResourcesOrNil(components, name),
+			PodLabels: c.PodLabels(name),
+		},
+		Replicas: componentReplicasOrDefault(components, name, 1),
 	}
-	applySchedulingPolicy(&spec, components[name].SchedulingPolicy)
-	return spec
+	applySchedulingPolicy(&component.ComponentSpec, components[name].SchedulingPolicy)
+	applyPodCustomization(&component, componentPodCustomization(c, name))
+	return component
 }
 
 // milvusImage is a container image plus the plain semver the operator gates
@@ -268,11 +272,8 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 	if topologyType == "standalone" {
 		spec.Com.Standalone = &milvusapi.MilvusStandalone{
 			ServiceComponent: milvusapi.ServiceComponent{
-				Component: milvusapi.Component{
-					ComponentSpec: makeMilvusComponentSpec(c, common.ComponentStandalone, images.resolve(common.ComponentStandalone)),
-					Replicas:      componentReplicasOrDefault(instance.Spec.Components, common.ComponentStandalone, 1),
-				},
-				Port: 19530,
+				Component: makeMilvusComponent(c, common.ComponentStandalone, images.resolve(common.ComponentStandalone)),
+				Port:      19530,
 			},
 		}
 		applyServiceExposure(&spec.Com.Standalone.ServiceComponent, instance.Spec.Components[common.ComponentStandalone].Service)
@@ -283,32 +284,16 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 
 	spec.Com.Proxy = &milvusapi.MilvusProxy{
 		ServiceComponent: milvusapi.ServiceComponent{
-			Component: milvusapi.Component{
-				ComponentSpec: makeMilvusComponentSpec(c, common.ComponentProxy, images.resolve(common.ComponentProxy)),
-				Replicas:      componentReplicasOrDefault(instance.Spec.Components, common.ComponentProxy, 1),
-			},
-			Port: 19530,
+			Component: makeMilvusComponent(c, common.ComponentProxy, images.resolve(common.ComponentProxy)),
+			Port:      19530,
 		},
 	}
 	applyServiceExposure(&spec.Com.Proxy.ServiceComponent, instance.Spec.Components[common.ComponentProxy].Service)
 
-	spec.Com.MixCoord = &milvusapi.MilvusMixCoord{Component: milvusapi.Component{
-		ComponentSpec: makeMilvusComponentSpec(c, common.ComponentMixCoord, images.resolve(common.ComponentMixCoord)),
-		Replicas:      componentReplicasOrDefault(instance.Spec.Components, common.ComponentMixCoord, 1),
-	}}
-
-	for _, name := range []string{common.ComponentDataNode, common.ComponentQueryNode, common.ComponentStreaming} {
-		replicas := componentReplicasOrDefault(instance.Spec.Components, name, 1)
-		componentSpec := makeMilvusComponentSpec(c, name, images.resolve(name))
-		switch name {
-		case common.ComponentDataNode:
-			spec.Com.DataNode = &milvusapi.MilvusDataNode{Component: milvusapi.Component{ComponentSpec: componentSpec, Replicas: replicas}}
-		case common.ComponentQueryNode:
-			spec.Com.QueryNode = &milvusapi.MilvusQueryNode{Component: milvusapi.Component{ComponentSpec: componentSpec, Replicas: replicas}}
-		case common.ComponentStreaming:
-			spec.Com.StreamingNode = &milvusapi.MilvusStreamingNode{Component: milvusapi.Component{ComponentSpec: componentSpec, Replicas: replicas}}
-		}
-	}
+	spec.Com.MixCoord = &milvusapi.MilvusMixCoord{Component: makeMilvusComponent(c, common.ComponentMixCoord, images.resolve(common.ComponentMixCoord))}
+	spec.Com.DataNode = &milvusapi.MilvusDataNode{Component: makeMilvusComponent(c, common.ComponentDataNode, images.resolve(common.ComponentDataNode))}
+	spec.Com.QueryNode = &milvusapi.MilvusQueryNode{Component: makeMilvusComponent(c, common.ComponentQueryNode, images.resolve(common.ComponentQueryNode))}
+	spec.Com.StreamingNode = &milvusapi.MilvusStreamingNode{Component: makeMilvusComponent(c, common.ComponentStreaming, images.resolve(common.ComponentStreaming))}
 	spec.Dep = buildDependencies(c, topologyType)
 	spec.Com.ImageUpdateMode = imageUpdateMode(spec.Com)
 

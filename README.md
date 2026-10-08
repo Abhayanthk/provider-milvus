@@ -73,6 +73,7 @@ provider itself is covered under [Installation](#installation).
 | Authentication | ✅ | A `root` credential is generated and published to the connection Secret |
 | Network exposure | ✅ | ClusterIP, NodePort or LoadBalancer via the component `service` |
 | Pod scheduling | ✅ | Per-component `schedulingPolicy` (affinity, tolerations, node selector, topology spread, scheduler); not applied to bundled dependencies |
+| Pod customization | ✅ | Per-component `parameters.pod`: annotations, env, volumes, volume mounts, container security context, init containers |
 | Monitoring | ❌ | |
 | TLS | ❌ | |
 
@@ -199,6 +200,32 @@ spec:
 - **ClusterIP** (default) — reachable only inside the cluster.
 - **LoadBalancer** — the connection host is the load balancer address once assigned.
 - **NodePort** — the connection host is a node address paired with the assigned node port.
+
+### Customize component pods
+
+`parameters.pod` adds pod-level settings to one component, e.g. to attach an
+SR-IOV/RDMA secondary network to the query nodes:
+
+```yaml
+spec:
+  components:
+    queryNode:
+      type: milvus
+      resources:
+        limits:
+          nvidia.com/gpu: "1"
+          rdma/hca: "1"
+      parameters:
+        pod:
+          annotations:
+            k8s.v1.cni.cncf.io/networks: sriov-rdma
+          securityContext:
+            capabilities:
+              add: ["IPC_LOCK"]
+```
+
+`volumes`, `securityContext` and `initContainers` take Kubernetes objects and
+are validated when the instance is reconciled.
 
 ## Topologies
 

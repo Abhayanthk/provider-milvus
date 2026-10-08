@@ -89,6 +89,10 @@ func validateInstance(c *controller.Context) error {
 		return err
 	}
 
+	if err := validateComponentParameters(c); err != nil {
+		return err
+	}
+
 	if topologyType == "cluster" {
 		if err := validateMixCoordStandby(c); err != nil {
 			return err

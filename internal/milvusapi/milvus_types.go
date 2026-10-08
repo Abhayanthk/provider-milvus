@@ -45,12 +45,19 @@ type ComponentSpec struct {
 	Affinity                  *corev1.Affinity                  `json:"affinity,omitempty"`
 	Tolerations               []corev1.Toleration               `json:"tolerations,omitempty"`
 	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+	PodAnnotations            map[string]string                 `json:"podAnnotations,omitempty"`
+	Env                       []corev1.EnvVar                   `json:"env,omitempty"`
+	Volumes                   []Values                          `json:"volumes,omitempty"`
+	VolumeMounts              []corev1.VolumeMount              `json:"volumeMounts,omitempty"`
+	// SecurityContext applies to the Milvus container, not the pod.
+	SecurityContext Values `json:"securityContext,omitempty"`
 }
 
 // Component is a generic Milvus component with replicas and image metadata.
 type Component struct {
-	ComponentSpec `json:",inline"`
-	Replicas      *int32 `json:"replicas,omitempty"`
+	ComponentSpec  `json:",inline"`
+	Replicas       *int32   `json:"replicas,omitempty"`
+	InitContainers []Values `json:"initContainers,omitempty"`
 }
 
 // ServiceComponent adds a port number to a component.

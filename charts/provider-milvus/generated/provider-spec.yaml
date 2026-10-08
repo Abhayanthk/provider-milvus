@@ -3,9 +3,9 @@
 spec:
   componentTypes:
     milvus:
+      defaultVersion: 2.6.11
       versions:
-        - default: true
-          image: milvusdb/milvus:v2.6.11
+        - image: milvusdb/milvus:v2.6.11
           version: 2.6.11
         - image: milvusdb/milvus:v2.6.10
           version: 2.6.10
@@ -98,6 +98,7 @@ spec:
               type: string
           type: object
       type: milvus
+  defaultVersion: 2.6.11
   release:
     version: 0.1.0
   topologies:
@@ -1215,7 +1216,6 @@ spec:
         queryNode: 2.6.11
         standalone: 2.6.11
         streamingNode: 2.6.11
-      default: true
       name: 2.6.11
     - components:
         dataNode: 2.6.10

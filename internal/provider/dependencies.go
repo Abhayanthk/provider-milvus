@@ -60,33 +60,70 @@ var (
 // from the topology parameters, applying per-topology defaults and honouring
 // external-dependency overrides.
 func buildDependencies(c *controller.Context, topologyType string) *milvusapi.MilvusDependencies {
-	var etcdParam *dependencies.Etcd
-	var pulsarParam *dependencies.Pulsar
-	var storageParam *dependencies.Storage
-
-	if topologyType == "cluster" {
-		var params cluster.ClusterTopologyParameters
-		if c.TryDecodeTopologyParameters(&params) && params.Dependencies != nil {
-			etcdParam = params.Dependencies.Etcd
-			pulsarParam = params.Dependencies.Pulsar
-			storageParam = params.Dependencies.Storage
-		}
-	} else {
+	if topologyType != "cluster" {
 		var params standalone.StandaloneTopologyParameters
+		var etcdParam *dependencies.Etcd
+		var storageParam *dependencies.Storage
 		if c.TryDecodeTopologyParameters(&params) && params.Dependencies != nil {
 			etcdParam = params.Dependencies.Etcd
 			storageParam = params.Dependencies.Storage
 		}
+		return &milvusapi.MilvusDependencies{
+			Etcd:    buildEtcd(etcdParam, topologyType),
+			Storage: buildStorage(storageParam),
+		}
 	}
 
+	deps := clusterDependencyParams(c)
 	dep := &milvusapi.MilvusDependencies{
-		Etcd:    buildEtcd(etcdParam, topologyType),
-		Storage: buildStorage(storageParam),
+		Etcd:          buildEtcd(deps.Etcd, topologyType),
+		Storage:       buildStorage(deps.Storage),
+		MsgStreamType: messageStreamType(c, deps.MessageStreamType),
 	}
-	if topologyType == "cluster" {
-		dep.Pulsar = buildPulsar(pulsarParam)
+	if dep.MsgStreamType == dependencies.MessageStreamPulsar {
+		dep.Pulsar = buildPulsar(deps.Pulsar)
 	}
 	return dep
+}
+
+// clusterDependencyParams decodes the cluster dependency parameters, returning
+// an empty set when none are given.
+func clusterDependencyParams(c *controller.Context) cluster.ClusterDependencies {
+	var params cluster.ClusterTopologyParameters
+	if c.TryDecodeTopologyParameters(&params) && params.Dependencies != nil {
+		return *params.Dependencies
+	}
+	return cluster.ClusterDependencies{}
+}
+
+// messageStreamType resolves the cluster's write-ahead log. An existing
+// instance keeps the stream it was created with, because switching loses the
+// WAL; new instances default to Woodpecker, which needs no extra dependency.
+func messageStreamType(c *controller.Context, requested string) string {
+	if requested != "" {
+		return requested
+	}
+	if existing := existingMessageStreamType(c); existing != "" {
+		return existing
+	}
+	return dependencies.MessageStreamWoodpecker
+}
+
+// existingMessageStreamType reports the stream of the already-applied Milvus
+// CR. CRs created before the stream was selectable carry only the operator's
+// Pulsar default.
+func existingMessageStreamType(c *controller.Context) string {
+	existing := &milvusapi.Milvus{}
+	if err := c.Get(existing, c.Name()); err != nil || existing.Spec.Dep == nil {
+		return ""
+	}
+	if existing.Spec.Dep.MsgStreamType != "" {
+		return existing.Spec.Dep.MsgStreamType
+	}
+	if existing.Spec.Dep.Pulsar.InCluster != nil || existing.Spec.Dep.Pulsar.External {
+		return dependencies.MessageStreamPulsar
+	}
+	return ""
 }
 
 // externalStorageConfig is the engine config an external object store needs

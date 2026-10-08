@@ -305,10 +305,17 @@ func validateDependencies(c *controller.Context, topologyType string) error {
 		if err := decodeTopologyParametersIfPresent(c, &params); err != nil {
 			return err
 		}
+		requestedStream := ""
 		if params.Dependencies != nil {
 			etcd = params.Dependencies.Etcd
-			pulsar = params.Dependencies.Pulsar
 			storage = params.Dependencies.Storage
+			requestedStream = params.Dependencies.MessageStreamType
+		}
+		if err := validateMessageStream(c, requestedStream); err != nil {
+			return err
+		}
+		if params.Dependencies != nil && messageStreamType(c, requestedStream) == dependencies.MessageStreamPulsar {
+			pulsar = params.Dependencies.Pulsar
 		}
 	} else {
 		var params standalone.StandaloneTopologyParameters
@@ -328,6 +335,23 @@ func validateDependencies(c *controller.Context, topologyType string) error {
 		return err
 	}
 	return validateStorageDependency(storage)
+}
+
+// validateMessageStream accepts the supported write-ahead logs and rejects
+// switching an existing instance, which would lose its WAL.
+func validateMessageStream(c *controller.Context, requested string) error {
+	switch requested {
+	case "", dependencies.MessageStreamWoodpecker, dependencies.MessageStreamPulsar:
+	default:
+		return fmt.Errorf("messageStreamType must be %s or %s", dependencies.MessageStreamWoodpecker, dependencies.MessageStreamPulsar)
+	}
+	if requested == "" {
+		return nil
+	}
+	if existing := existingMessageStreamType(c); existing != "" && existing != requested {
+		return fmt.Errorf("message stream cannot be changed from %s to %s; set messageStreamType to %s", existing, requested, existing)
+	}
+	return nil
 }
 
 // decodeTopologyParametersIfPresent decodes the instance's topology parameters

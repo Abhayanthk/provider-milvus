@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 
@@ -23,6 +24,10 @@ func topologyParams(t *testing.T, v any) *runtime.RawExtension {
 	raw, err := json.Marshal(v)
 	require.NoError(t, err)
 	return &runtime.RawExtension{Raw: raw}
+}
+
+var pulsarCluster = cluster.ClusterTopologyParameters{
+	Dependencies: &cluster.ClusterDependencies{MessageStreamType: dependencies.MessageStreamPulsar},
 }
 
 func TestBuildDependenciesStandaloneDefaults(t *testing.T) {
@@ -57,6 +62,25 @@ func TestBuildDependenciesClusterDefaults(t *testing.T) {
 	require.NotNil(t, spec.Dep.Etcd.InCluster)
 	assert.Equal(t, 3, spec.Dep.Etcd.InCluster.Values["replicaCount"])
 
+	// New clusters keep the WAL in object storage: no Pulsar is deployed.
+	assert.Equal(t, dependencies.MessageStreamWoodpecker, spec.Dep.MsgStreamType)
+	assert.Nil(t, spec.Dep.Pulsar.InCluster)
+
+	require.NotNil(t, spec.Dep.Storage.InCluster)
+	assert.Equal(t, map[string]any{"size": "10Gi"}, spec.Dep.Storage.InCluster.Values["persistence"])
+}
+
+func TestBuildDependenciesClusterPulsar(t *testing.T) {
+	params := cluster.ClusterTopologyParameters{
+		Dependencies: &cluster.ClusterDependencies{MessageStreamType: dependencies.MessageStreamPulsar},
+	}
+	c := newTestContext(t, corev1alpha1.InstanceSpec{
+		Topology: &corev1alpha1.TopologySpec{Type: "cluster", Parameters: topologyParams(t, params)},
+	})
+	spec, err := BuildMilvusSpec(c)
+	require.NoError(t, err)
+
+	assert.Equal(t, dependencies.MessageStreamPulsar, spec.Dep.MsgStreamType)
 	require.NotNil(t, spec.Dep.Pulsar.InCluster)
 	broker, ok := spec.Dep.Pulsar.InCluster.Values["broker"].(map[string]any)
 	require.True(t, ok)
@@ -64,16 +88,74 @@ func TestBuildDependenciesClusterDefaults(t *testing.T) {
 	bookkeeper, ok := spec.Dep.Pulsar.InCluster.Values["bookkeeper"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, 2, bookkeeper["replicaCount"])
+}
 
-	require.NotNil(t, spec.Dep.Storage.InCluster)
-	assert.Equal(t, map[string]any{"size": "10Gi"}, spec.Dep.Storage.InCluster.Values["persistence"])
+func TestBuildDependenciesWoodpeckerIgnoresPulsarParams(t *testing.T) {
+	// The UI always sends Pulsar defaults; they must not deploy Pulsar.
+	params := cluster.ClusterTopologyParameters{
+		Dependencies: &cluster.ClusterDependencies{
+			MessageStreamType: dependencies.MessageStreamWoodpecker,
+			Pulsar:            &dependencies.Pulsar{Broker: &dependencies.PulsarComponent{Replicas: ptr.To(int32(3))}},
+		},
+	}
+	c := newTestContext(t, corev1alpha1.InstanceSpec{
+		Topology: &corev1alpha1.TopologySpec{Type: "cluster", Parameters: topologyParams(t, params)},
+	})
+	spec, err := BuildMilvusSpec(c)
+	require.NoError(t, err)
+	assert.Equal(t, dependencies.MessageStreamWoodpecker, spec.Dep.MsgStreamType)
+	assert.Nil(t, spec.Dep.Pulsar.InCluster)
+}
+
+func TestBuildDependenciesExistingInstanceKeepsMessageStream(t *testing.T) {
+	tests := map[string]milvusapi.MilvusDependencies{
+		"stream recorded on the CR": {MsgStreamType: dependencies.MessageStreamPulsar},
+		"pre-selection CR with bundled Pulsar": {
+			Pulsar: milvusapi.MilvusPulsar{InCluster: &milvusapi.InClusterConfig{}},
+		},
+	}
+	for name, existingDeps := range tests {
+		t.Run(name, func(t *testing.T) {
+			existing := &milvusapi.Milvus{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-milvus", Namespace: "db"},
+				Spec:       milvusapi.MilvusSpec{Mode: milvusapi.MilvusModeCluster, Dep: &existingDeps},
+			}
+			c := newTestContextWithObjects(t, corev1alpha1.InstanceSpec{
+				Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+			}, existing)
+			spec, err := BuildMilvusSpec(c)
+			require.NoError(t, err)
+			assert.Equal(t, dependencies.MessageStreamPulsar, spec.Dep.MsgStreamType)
+			assert.NotNil(t, spec.Dep.Pulsar.InCluster)
+		})
+	}
+}
+
+func TestValidateMessageStreamUnchanged(t *testing.T) {
+	existing := &milvusapi.Milvus{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-milvus", Namespace: "db"},
+		Spec: milvusapi.MilvusSpec{
+			Mode: milvusapi.MilvusModeCluster,
+			Dep:  &milvusapi.MilvusDependencies{MsgStreamType: dependencies.MessageStreamPulsar},
+		},
+	}
+	params := cluster.ClusterTopologyParameters{
+		Dependencies: &cluster.ClusterDependencies{MessageStreamType: dependencies.MessageStreamWoodpecker},
+	}
+	c := newTestContextWithObjects(t, corev1alpha1.InstanceSpec{
+		Topology: &corev1alpha1.TopologySpec{Type: "cluster", Parameters: topologyParams(t, params)},
+	}, existing)
+	err := validateInstance(c)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "message stream cannot be changed from pulsar to woodpecker")
 }
 
 func TestBuildDependenciesExternal(t *testing.T) {
 	params := cluster.ClusterTopologyParameters{
 		Dependencies: &cluster.ClusterDependencies{
-			Etcd:    &dependencies.Etcd{External: true, Endpoints: []string{"etcd-a:2379", "etcd-b:2379"}},
-			Pulsar:  &dependencies.Pulsar{External: true, Endpoint: "pulsar://broker:6650"},
+			Etcd:              &dependencies.Etcd{External: true, Endpoints: []string{"etcd-a:2379", "etcd-b:2379"}},
+			MessageStreamType: dependencies.MessageStreamPulsar,
+			Pulsar:            &dependencies.Pulsar{External: true, Endpoint: "pulsar://broker:6650"},
 			Storage: &dependencies.Storage{
 				External: true, Endpoint: "s3.amazonaws.com", Type: "S3",
 				CredentialsSecret: "s3-creds", Bucket: "vectors", UseSSL: true,
@@ -114,6 +196,7 @@ func TestBuildDependenciesUserOverrides(t *testing.T) {
 				Resources: &dependencies.Resources{Requests: &dependencies.ResourceList{CPU: "250m", Memory: "1Gi"}},
 			},
 			Storage: &dependencies.Storage{Replicas: ptr.To(int32(4))},
+			MessageStreamType: dependencies.MessageStreamPulsar,
 			Pulsar: &dependencies.Pulsar{
 				Broker: &dependencies.PulsarComponent{Replicas: ptr.To(int32(3))},
 			},
@@ -146,7 +229,7 @@ func TestBuildDependenciesUserOverrides(t *testing.T) {
 
 func TestBuildDependenciesPersistenceDefaults(t *testing.T) {
 	c := newTestContext(t, corev1alpha1.InstanceSpec{
-		Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+		Topology: &corev1alpha1.TopologySpec{Type: "cluster", Parameters: topologyParams(t, pulsarCluster)},
 	})
 	spec, err := BuildMilvusSpec(c)
 	require.NoError(t, err)
@@ -172,6 +255,7 @@ func TestBuildDependenciesPersistenceOverrides(t *testing.T) {
 		Dependencies: &cluster.ClusterDependencies{
 			Etcd:    &dependencies.Etcd{Persistence: &dependencies.Persistence{Size: "20Gi"}},
 			Storage: &dependencies.Storage{Persistence: &dependencies.Persistence{Size: "100Gi"}},
+			MessageStreamType: dependencies.MessageStreamPulsar,
 			Pulsar: &dependencies.Pulsar{
 				BookKeeper: &dependencies.PulsarBookKeeper{
 					Journal: &dependencies.Persistence{Size: "8Gi"},
@@ -240,7 +324,7 @@ func TestBuildDependenciesNumericResourceQuantities(t *testing.T) {
 
 func TestBuildDependenciesDeletionPolicy(t *testing.T) {
 	c := newTestContext(t, corev1alpha1.InstanceSpec{
-		Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+		Topology: &corev1alpha1.TopologySpec{Type: "cluster", Parameters: topologyParams(t, pulsarCluster)},
 	})
 	spec, err := BuildMilvusSpec(c)
 	require.NoError(t, err)
@@ -277,10 +361,30 @@ func TestValidateDependencies(t *testing.T) {
 			name: "external pulsar without endpoint",
 			spec: corev1alpha1.InstanceSpec{
 				Topology: &corev1alpha1.TopologySpec{Type: "cluster", Parameters: topologyParams(t, cluster.ClusterTopologyParameters{
-					Dependencies: &cluster.ClusterDependencies{Pulsar: &dependencies.Pulsar{External: true}},
+					Dependencies: &cluster.ClusterDependencies{
+						MessageStreamType: dependencies.MessageStreamPulsar,
+						Pulsar:            &dependencies.Pulsar{External: true},
+					},
 				})},
 			},
 			wantErr: "pulsar.endpoint is required",
+		},
+		{
+			name: "unknown message stream",
+			spec: corev1alpha1.InstanceSpec{
+				Topology: &corev1alpha1.TopologySpec{Type: "cluster", Parameters: topologyParams(t, cluster.ClusterTopologyParameters{
+					Dependencies: &cluster.ClusterDependencies{MessageStreamType: "kafka"},
+				})},
+			},
+			wantErr: "messageStreamType must be woodpecker or pulsar",
+		},
+		{
+			name: "pulsar settings are not validated for woodpecker",
+			spec: corev1alpha1.InstanceSpec{
+				Topology: &corev1alpha1.TopologySpec{Type: "cluster", Parameters: topologyParams(t, cluster.ClusterTopologyParameters{
+					Dependencies: &cluster.ClusterDependencies{Pulsar: &dependencies.Pulsar{External: true}},
+				})},
+			},
 		},
 		{
 			name: "external storage without endpoint",
@@ -324,7 +428,7 @@ func TestValidateDependencies(t *testing.T) {
 			name: "pulsar broker request exceeds limit",
 			spec: corev1alpha1.InstanceSpec{
 				Topology: &corev1alpha1.TopologySpec{Type: "cluster", Parameters: topologyParams(t, cluster.ClusterTopologyParameters{
-					Dependencies: &cluster.ClusterDependencies{Pulsar: &dependencies.Pulsar{
+					Dependencies: &cluster.ClusterDependencies{MessageStreamType: dependencies.MessageStreamPulsar, Pulsar: &dependencies.Pulsar{
 						Broker: &dependencies.PulsarComponent{Resources: &dependencies.Resources{
 							Requests: &dependencies.ResourceList{CPU: "2"},
 							Limits:   &dependencies.ResourceList{CPU: "1"},

@@ -184,6 +184,8 @@ spec:
                           type: object
                       type: object
                   type: object
+                messageStreamType:
+                  type: string
                 pulsar:
                   properties:
                     bookkeeper:
@@ -625,7 +627,7 @@ spec:
                     - volumes
                   uiType: group
               groupType: accordion
-              label: BookKeeper
+              label: Pulsar BookKeeper
               uiType: group
             broker:
               components:
@@ -669,7 +671,7 @@ spec:
                     - resources
                   uiType: group
               groupType: accordion
-              label: Broker
+              label: Pulsar broker
               uiType: group
             proxy:
               components:
@@ -713,8 +715,23 @@ spec:
                     - resources
                   uiType: group
               groupType: accordion
-              label: Proxy
+              label: Pulsar proxy
               uiType: group
+            type:
+              fieldParams:
+                defaultValue: woodpecker
+                label: Type
+                modes:
+                  edit:
+                    disabled: true
+                    helperText: The message stream cannot be changed after creation
+                options:
+                  - label: Woodpecker
+                    value: woodpecker
+                  - label: Pulsar
+                    value: pulsar
+              path: spec.topology.parameters.dependencies.messageStreamType
+              uiType: select
             zookeeper:
               components:
                 settings:
@@ -773,14 +790,15 @@ spec:
                     - volumes
                   uiType: group
               groupType: accordion
-              label: ZooKeeper
+              label: Pulsar ZooKeeper
               uiType: group
           componentsOrder:
+            - type
             - broker
             - bookkeeper
             - zookeeper
             - proxy
-          description: Configure the bundled message stream.
+          description: Choose the write-ahead log. Woodpecker keeps it in the object storage; the Pulsar settings apply only when Pulsar is selected.
           label: Message stream
         metadataStore:
           components:

@@ -13,6 +13,12 @@ import (
 	"encoding/json"
 )
 
+// Message stream types selectable in cluster mode.
+const (
+	MessageStreamWoodpecker = "woodpecker"
+	MessageStreamPulsar     = "pulsar"
+)
+
 // Quantity is a Kubernetes resource quantity such as "500m", "1", or "512Mi".
 // It decodes from either a JSON string or a bare number, so numeric UI inputs
 // (e.g. cpu: 0.1) do not fail the whole topology-parameters block.

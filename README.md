@@ -209,7 +209,7 @@ spec:
 | Topology | Default | Description |
 |---|---|---|
 | `standalone` | ✅ | Single-process Milvus; smallest footprint, ideal for experimentation |
-| `cluster` | | Independently scalable components with Pulsar as the message stream |
+| `cluster` | | Independently scalable components; Woodpecker (default) or Pulsar as the message stream |
 <!-- END GENERATED: topologies -->
 
 ## Versions

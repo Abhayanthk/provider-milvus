@@ -11,11 +11,16 @@ type ClusterTopologyParameters struct {
 }
 
 // ClusterDependencies groups the dependency configuration available in cluster
-// mode. Cluster Milvus uses Pulsar as its message stream.
+// mode.
 type ClusterDependencies struct {
 	// Etcd configures the metadata store.
 	Etcd *dependencies.Etcd `json:"etcd,omitempty"`
-	// Pulsar configures the message stream.
+	// MessageStreamType selects the write-ahead log: "woodpecker" keeps it in
+	// the object storage (no extra dependency), "pulsar" deploys or connects to
+	// Pulsar. New instances default to woodpecker; it cannot be changed later.
+	MessageStreamType string `json:"messageStreamType,omitempty"`
+	// Pulsar configures the Pulsar message stream. Used only when
+	// MessageStreamType is pulsar.
 	Pulsar *dependencies.Pulsar `json:"pulsar,omitempty"`
 	// Storage configures the MinIO object storage.
 	Storage *dependencies.Storage `json:"storage,omitempty"`

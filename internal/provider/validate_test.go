@@ -237,3 +237,27 @@ func TestValidateStorageNotDecreased(t *testing.T) {
 		require.NoError(t, validateStorageNotDecreased(c, "standalone"))
 	})
 }
+
+func TestValidateTopologyUnchanged(t *testing.T) {
+	existing := &milvusapi.Milvus{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-milvus", Namespace: "db"},
+		Spec:       milvusapi.MilvusSpec{Mode: milvusapi.MilvusModeStandalone},
+	}
+
+	t.Run("switch is rejected", func(t *testing.T) {
+		c := newTestContextWithObjects(t, corev1alpha1.InstanceSpec{}, existing.DeepCopyObject().(*milvusapi.Milvus))
+		err := validateTopologyUnchanged(c, "cluster")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "topology cannot be changed from standalone to cluster")
+	})
+
+	t.Run("same topology is allowed", func(t *testing.T) {
+		c := newTestContextWithObjects(t, corev1alpha1.InstanceSpec{}, existing.DeepCopyObject().(*milvusapi.Milvus))
+		require.NoError(t, validateTopologyUnchanged(c, "standalone"))
+	})
+
+	t.Run("no existing CR skips guard", func(t *testing.T) {
+		c := newTestContextWithObjects(t, corev1alpha1.InstanceSpec{})
+		require.NoError(t, validateTopologyUnchanged(c, "cluster"))
+	})
+}

@@ -17,12 +17,10 @@ import (
 	"github.com/openeverest/provider-milvus/internal/milvusapi"
 )
 
-func componentPodCustomization(c *controller.Context, name string) *components.PodCustomization {
+func componentParameters(c *controller.Context, name string) components.MilvusParameters {
 	var params components.MilvusParameters
-	if !c.TryDecodeComponentParameters(c.Instance().Spec.Components[name], &params) {
-		return nil
-	}
-	return params.Pod
+	c.TryDecodeComponentParameters(c.Instance().Spec.Components[name], &params)
+	return params
 }
 
 // applyPodCustomization hands the pod-level settings to the operator, which
@@ -119,6 +117,9 @@ func validateComponentParameters(c *controller.Context) error {
 			return fmt.Errorf("component %q has invalid parameters: %w", name, err)
 		}
 		if err := validatePodCustomization(name, params.Pod); err != nil {
+			return err
+		}
+		if err := validateDeploymentGroups(name, component.Replicas, params.Groups); err != nil {
 			return err
 		}
 	}

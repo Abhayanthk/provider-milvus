@@ -89,7 +89,7 @@ func makeMilvusComponent(c *controller.Context, name string, image milvusImage) 
 		Replicas: componentReplicasOrDefault(components, name, 1),
 	}
 	applySchedulingPolicy(&component.ComponentSpec, components[name].SchedulingPolicy)
-	applyPodCustomization(&component, componentPodCustomization(c, name))
+	applyPodCustomization(&component, componentParameters(c, name).Pod)
 	return component
 }
 
@@ -289,11 +289,15 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 		},
 	}
 	applyServiceExposure(&spec.Com.Proxy.ServiceComponent, instance.Spec.Components[common.ComponentProxy].Service)
+	spec.Com.Proxy.Groups = applyDeploymentGroups(c, common.ComponentProxy, &spec.Com.Proxy.Component)
 
 	spec.Com.MixCoord = &milvusapi.MilvusMixCoord{Component: makeMilvusComponent(c, common.ComponentMixCoord, images.resolve(common.ComponentMixCoord))}
 	spec.Com.DataNode = &milvusapi.MilvusDataNode{Component: makeMilvusComponent(c, common.ComponentDataNode, images.resolve(common.ComponentDataNode))}
+	spec.Com.DataNode.Groups = applyDeploymentGroups(c, common.ComponentDataNode, &spec.Com.DataNode.Component)
 	spec.Com.QueryNode = &milvusapi.MilvusQueryNode{Component: makeMilvusComponent(c, common.ComponentQueryNode, images.resolve(common.ComponentQueryNode))}
+	spec.Com.QueryNode.Groups = applyDeploymentGroups(c, common.ComponentQueryNode, &spec.Com.QueryNode.Component)
 	spec.Com.StreamingNode = &milvusapi.MilvusStreamingNode{Component: makeMilvusComponent(c, common.ComponentStreaming, images.resolve(common.ComponentStreaming))}
+	spec.Com.StreamingNode.Groups = applyDeploymentGroups(c, common.ComponentStreaming, &spec.Com.StreamingNode.Component)
 	spec.Dep = buildDependencies(c, topologyType)
 	spec.Com.ImageUpdateMode = imageUpdateMode(spec.Com)
 

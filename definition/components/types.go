@@ -23,6 +23,32 @@ type MilvusParameters struct {
 	// Pod customizes this component's pods beyond the Instance spec, e.g. for
 	// secondary networks, RDMA or GPU Direct Storage.
 	Pod *PodCustomization `json:"pod,omitempty"`
+	// Groups splits the component into independently placed workloads, e.g.
+	// query nodes on two GPU pools. Supported on proxy, dataNode, queryNode and
+	// streamingNode. The component's replicas, when set, must equal the sum of
+	// the groups' replicas.
+	Groups []DeploymentGroup `json:"groups,omitempty"`
+}
+
+// DeploymentGroup is one independently placed workload of a component. It
+// inherits everything else (image, resources, pod customization) from the
+// component; set placement fields override the component's scheduling policy.
+type DeploymentGroup struct {
+	// Name identifies the group (a DNS label).
+	Name string `json:"name"`
+	// Replicas is the group's pod count.
+	Replicas int32 `json:"replicas"`
+	// NodeSelector places the group's pods, e.g. on one GPU model.
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// Tolerations let the group's pods run on tainted nodes.
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// Affinity constrains where the group's pods run (a Kubernetes Affinity
+	// object, free-form to keep the published schema small).
+	Affinity map[string]any `json:"affinity,omitempty"`
+	// Annotations are added to the group's pods, e.g. a pool-specific network.
+	Annotations map[string]string `json:"annotations,omitempty"`
+	// Env adds environment variables, overriding the component's by name.
+	Env []corev1.EnvVar `json:"env,omitempty"`
 }
 
 // PodCustomization holds pod-level settings applied to one component's pods.

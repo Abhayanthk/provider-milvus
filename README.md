@@ -227,6 +227,31 @@ spec:
 `volumes`, `securityContext` and `initContainers` take Kubernetes objects and
 are validated when the instance is reconciled.
 
+### Split a component across node pools
+
+`parameters.groups` runs `proxy`, `dataNode`, `queryNode` or `streamingNode` as
+several independently placed workloads, e.g. query nodes on two GPU models.
+Groups inherit the component's image, resources and pod settings; the
+component's `replicas`, when set, must equal the groups' total:
+
+```yaml
+spec:
+  components:
+    queryNode:
+      type: milvus
+      replicas: 6
+      parameters:
+        groups:
+          - name: l40s
+            replicas: 4
+            nodeSelector:
+              nvidia.com/gpu.product: NVIDIA-L40S
+          - name: h200
+            replicas: 2
+            nodeSelector:
+              nvidia.com/gpu.product: NVIDIA-H200
+```
+
 ## Topologies
 
 <!-- TODO(sdk): these blocks are hand-maintained until `provider-sdk generate` fills them

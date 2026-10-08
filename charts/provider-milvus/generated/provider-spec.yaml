@@ -483,6 +483,7 @@ spec:
             replicas:
               fieldParams:
                 defaultValue: 1
+                helperText: Extra replicas run as hot standbys (active-standby)
                 label: Replicas
               path: spec.components.mixCoord.replicas
               uiType: number

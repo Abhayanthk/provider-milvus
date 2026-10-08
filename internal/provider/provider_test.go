@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	corev1alpha1 "github.com/openeverest/openeverest/v2/api/core/v1alpha1"
@@ -193,6 +194,61 @@ func TestBuildMilvusSpecClusterComponents(t *testing.T) {
 	require.NotNil(t, spec.Com.DataNode)
 	require.NotNil(t, spec.Com.QueryNode)
 	require.NotNil(t, spec.Com.StreamingNode)
+}
+
+func TestBuildMilvusSpecActiveStandby(t *testing.T) {
+	t.Run("cluster enables active-standby on every coordinator", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{
+			Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+			Components: map[string]corev1alpha1.ComponentSpec{
+				common.ComponentMixCoord: {
+					Replicas:   ptr.To(int32(2)),
+					Parameters: configParams(t, "rootCoord:\n  dmlChannelNum: 32\n"),
+				},
+			},
+		})
+		spec, err := BuildMilvusSpec(c)
+		require.NoError(t, err)
+		for _, section := range coordinatorConfigSections {
+			assert.Equal(t, true, spec.Conf[section].(map[string]any)["enableActiveStandby"], section)
+		}
+		assert.Equal(t, float64(32), spec.Conf["rootCoord"].(map[string]any)["dmlChannelNum"])
+	})
+
+	t.Run("standalone is left to the operator", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{Topology: &corev1alpha1.TopologySpec{Type: "standalone"}})
+		spec, err := BuildMilvusSpec(c)
+		require.NoError(t, err)
+		assert.Nil(t, spec.Conf)
+	})
+}
+
+func TestValidateMixCoordStandby(t *testing.T) {
+	disabled := configParams(t, "queryCoord:\n  enableActiveStandby: false\n")
+	tests := map[string]struct {
+		replicas int32
+		wantErr  string
+	}{
+		"single replica may disable active-standby": {replicas: 1},
+		"several replicas need active-standby":      {replicas: 2, wantErr: "queryCoord.enableActiveStandby"},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			c := newTestContext(t, corev1alpha1.InstanceSpec{
+				Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+				Components: map[string]corev1alpha1.ComponentSpec{
+					common.ComponentMixCoord: {Replicas: ptr.To(tt.replicas), Parameters: disabled},
+				},
+			})
+			err := validateInstance(c)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
 }
 
 func TestNotReadyMessage(t *testing.T) {

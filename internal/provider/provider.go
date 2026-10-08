@@ -119,6 +119,22 @@ func milvusEngineConfig(c *controller.Context) (milvusapi.Values, error) {
 	return merged, nil
 }
 
+// coordinatorConfigSections are the roles hosted by MixCoord; each must allow
+// active-standby for a second MixCoord replica to act as a hot standby and for
+// the operator to roll coordinators without downtime.
+var coordinatorConfigSections = []string{"rootCoord", "dataCoord", "indexCoord", "queryCoord"}
+
+// withActiveStandbyDefaults enables active-standby on every coordinator role
+// unless the user's configuration sets it explicitly.
+func withActiveStandbyDefaults(userConfig milvusapi.Values) milvusapi.Values {
+	config := milvusapi.Values{}
+	for _, section := range coordinatorConfigSections {
+		config[section] = map[string]any{"enableActiveStandby": true}
+	}
+	deepMergeValues(config, userConfig)
+	return config
+}
+
 // deepMergeValues recursively merges src into dst. Nested maps are merged;
 // any non-map value in src overrides the corresponding key in dst.
 func deepMergeValues(dst, src map[string]any) {
@@ -191,6 +207,9 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 	engineConfig, err := milvusEngineConfig(c)
 	if err != nil {
 		return milvusapi.MilvusSpec{}, err
+	}
+	if mode == milvusapi.MilvusModeCluster {
+		engineConfig = withActiveStandbyDefaults(engineConfig)
 	}
 	spec.Conf = engineConfig
 	if storageConfig := externalStorageConfig(storageDependencyParam(c, topologyType)); storageConfig != nil {

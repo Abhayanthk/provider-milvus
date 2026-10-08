@@ -89,6 +89,32 @@ func validateInstance(c *controller.Context) error {
 		return err
 	}
 
+	if topologyType == "cluster" {
+		if err := validateMixCoordStandby(c); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateMixCoordStandby rejects several MixCoord replicas when the user's
+// configuration disables active-standby: they would all try to be active.
+func validateMixCoordStandby(c *controller.Context) error {
+	replicas := c.Instance().Spec.Components[common.ComponentMixCoord].Replicas
+	if replicas == nil || *replicas <= 1 {
+		return nil
+	}
+	userConfig, err := milvusEngineConfig(c)
+	if err != nil {
+		return err
+	}
+	for _, section := range coordinatorConfigSections {
+		settings, _ := userConfig[section].(map[string]any)
+		if enabled, set := settings["enableActiveStandby"].(bool); set && !enabled {
+			return fmt.Errorf("mixCoord replicas > 1 requires active-standby; remove %s.enableActiveStandby: false from the configuration", section)
+		}
+	}
 	return nil
 }
 

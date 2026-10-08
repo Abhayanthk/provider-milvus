@@ -201,6 +201,7 @@ ui:
           fieldParams:
             label: Replicas
             defaultValue: 1
+            helperText: Extra replicas run as hot standbys (active-standby)
           validation:
             min: 1
         resources:

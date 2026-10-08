@@ -195,6 +195,21 @@ func TestBuildMilvusSpecClusterComponents(t *testing.T) {
 	require.NotNil(t, spec.Com.StreamingNode)
 }
 
+func TestNotReadyMessage(t *testing.T) {
+	cr := &milvusapi.Milvus{Status: milvusapi.MilvusStatus{Conditions: []milvusapi.MilvusCondition{
+		{Type: "MilvusReady", Status: corev1.ConditionFalse, Message: "[standalone] not ready"},
+		{Type: "StorageReady", Status: corev1.ConditionFalse, Reason: "SecretNotExist", Message: "Secret not exist"},
+		{Type: "EtcdReady", Status: corev1.ConditionTrue},
+	}}}
+	assert.Equal(t, "waiting: StorageReady: Secret not exist", notReadyMessage(cr, "waiting"),
+		"a failing dependency is reported before the components waiting on it")
+
+	cr.Status.Conditions[1].Message = ""
+	assert.Equal(t, "waiting: StorageReady: SecretNotExist", notReadyMessage(cr, "waiting"))
+
+	assert.Equal(t, "waiting", notReadyMessage(&milvusapi.Milvus{}, "waiting"))
+}
+
 func TestBuildMilvusSpecLabelsComponentPods(t *testing.T) {
 	podLabels := func(component string) map[string]string {
 		return map[string]string{

@@ -159,6 +159,21 @@ func TestResolveEndpointNodePortNotReady(t *testing.T) {
 	assert.Contains(t, message, "NodePort")
 }
 
+func TestServiceTypeFromSpecClusterIgnoresDefaultedStandalone(t *testing.T) {
+	// The operator's webhook defaults spec.components.standalone in cluster mode too.
+	cr := &milvusapi.Milvus{Spec: milvusapi.MilvusSpec{
+		Mode: milvusapi.MilvusModeCluster,
+		Com: milvusapi.MilvusComponents{
+			Standalone: &milvusapi.MilvusStandalone{ServiceComponent: milvusapi.ServiceComponent{ServiceType: corev1.ServiceTypeClusterIP}},
+			Proxy:      &milvusapi.MilvusProxy{ServiceComponent: milvusapi.ServiceComponent{ServiceType: corev1.ServiceTypeNodePort}},
+		},
+	}}
+	assert.Equal(t, corev1.ServiceTypeNodePort, serviceTypeFromSpec(cr))
+
+	cr.Spec.Com.Proxy.ServiceType = ""
+	assert.Equal(t, corev1.ServiceTypeClusterIP, serviceTypeFromSpec(cr))
+}
+
 func TestValidateServiceExposure(t *testing.T) {
 	valid := map[string]corev1alpha1.ComponentSpec{
 		common.ComponentStandalone: {Service: lbService(corev1.ServiceTypeLoadBalancer)},

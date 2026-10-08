@@ -1,0 +1,24 @@
+apiVersion: core.openeverest.io/v1alpha1
+kind: Instance
+metadata:
+  name: e2e-standalone
+spec:
+  providerRef:
+    name: milvus
+  # Starts one version behind so the run can upgrade it.
+  version: "2.6.10"
+  topology:
+    type: standalone
+  components:
+    standalone:
+      type: milvus
+      replicas: 1
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          cpu: "1"
+          memory: 2Gi
+      service:
+        serviceType: NodePort

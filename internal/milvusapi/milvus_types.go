@@ -154,8 +154,17 @@ type MilvusDependencies struct {
 
 // MilvusStatus is the observed state of a Milvus deployment.
 type MilvusStatus struct {
-	Status   MilvusHealthStatus `json:"status,omitempty"`
-	Endpoint string             `json:"endpoint,omitempty"`
+	Status     MilvusHealthStatus `json:"status,omitempty"`
+	Endpoint   string             `json:"endpoint,omitempty"`
+	Conditions []MilvusCondition  `json:"conditions,omitempty"`
+}
+
+// MilvusCondition is one readiness condition the operator reports.
+type MilvusCondition struct {
+	Type    string                 `json:"type"`
+	Status  corev1.ConditionStatus `json:"status"`
+	Reason  string                 `json:"reason,omitempty"`
+	Message string                 `json:"message,omitempty"`
 }
 
 // Milvus is a minimal CRD model used by the provider to render the Milvus control-plane resource.

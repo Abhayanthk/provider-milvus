@@ -89,6 +89,25 @@ func buildDependencies(c *controller.Context, topologyType string) *milvusapi.Mi
 	return dep
 }
 
+// externalStorageConfig is the engine config an external object store needs
+// beyond the dependency spec: its bucket and whether to use TLS.
+func externalStorageConfig(param *dependencies.Storage) milvusapi.Values {
+	if param == nil || !param.External {
+		return nil
+	}
+	minio := map[string]any{}
+	if param.Bucket != "" {
+		minio["bucketName"] = param.Bucket
+	}
+	if param.UseSSL {
+		minio["useSSL"] = true
+	}
+	if len(minio) == 0 {
+		return nil
+	}
+	return milvusapi.Values{"minio": minio}
+}
+
 // bundledInCluster wraps rendered Helm values so removing the Instance (and the
 // owned Milvus CR) tears the bundled dependency down — StatefulSets, Pods and
 // PVCs — instead of leaking orphans. The operator otherwise defaults bundled
@@ -146,7 +165,12 @@ func buildEtcd(param *dependencies.Etcd, topologyType string) milvusapi.MilvusEt
 // to a predictable default.
 func buildStorage(param *dependencies.Storage) milvusapi.MilvusStorage {
 	if param != nil && param.External {
-		return milvusapi.MilvusStorage{External: true, Endpoint: param.Endpoint}
+		return milvusapi.MilvusStorage{
+			External:  true,
+			Endpoint:  param.Endpoint,
+			Type:      param.Type,
+			SecretRef: param.CredentialsSecret,
+		}
 	}
 
 	replicas := defaultStorageReplicas

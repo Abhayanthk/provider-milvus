@@ -74,7 +74,10 @@ func TestBuildDependenciesExternal(t *testing.T) {
 		Dependencies: &cluster.ClusterDependencies{
 			Etcd:    &dependencies.Etcd{External: true, Endpoints: []string{"etcd-a:2379", "etcd-b:2379"}},
 			Pulsar:  &dependencies.Pulsar{External: true, Endpoint: "pulsar://broker:6650"},
-			Storage: &dependencies.Storage{External: true, Endpoint: "s3.amazonaws.com"},
+			Storage: &dependencies.Storage{
+				External: true, Endpoint: "s3.amazonaws.com", Type: "S3",
+				CredentialsSecret: "s3-creds", Bucket: "vectors", UseSSL: true,
+			},
 		},
 	}
 	c := newTestContext(t, corev1alpha1.InstanceSpec{
@@ -97,7 +100,10 @@ func TestBuildDependenciesExternal(t *testing.T) {
 
 	assert.True(t, spec.Dep.Storage.External)
 	assert.Equal(t, "s3.amazonaws.com", spec.Dep.Storage.Endpoint)
+	assert.Equal(t, "S3", spec.Dep.Storage.Type)
+	assert.Equal(t, "s3-creds", spec.Dep.Storage.SecretRef)
 	assert.Nil(t, spec.Dep.Storage.InCluster)
+	assert.Equal(t, map[string]any{"bucketName": "vectors", "useSSL": true}, spec.Conf["minio"])
 }
 
 func TestBuildDependenciesUserOverrides(t *testing.T) {
@@ -284,6 +290,26 @@ func TestValidateDependencies(t *testing.T) {
 				})},
 			},
 			wantErr: "storage.endpoint is required",
+		},
+		{
+			name: "external storage without credentials",
+			spec: corev1alpha1.InstanceSpec{
+				Topology: &corev1alpha1.TopologySpec{Type: "standalone", Parameters: topologyParams(t, standalone.StandaloneTopologyParameters{
+					Dependencies: &standalone.StandaloneDependencies{Storage: &dependencies.Storage{External: true, Endpoint: "minio:9000"}},
+				})},
+			},
+			wantErr: "storage.credentialsSecret is required",
+		},
+		{
+			name: "external storage with unknown type",
+			spec: corev1alpha1.InstanceSpec{
+				Topology: &corev1alpha1.TopologySpec{Type: "standalone", Parameters: topologyParams(t, standalone.StandaloneTopologyParameters{
+					Dependencies: &standalone.StandaloneDependencies{Storage: &dependencies.Storage{
+						External: true, Endpoint: "minio:9000", CredentialsSecret: "creds", Type: "GCS",
+					}},
+				})},
+			},
+			wantErr: "storage.type must be one of",
 		},
 		{
 			name: "etcd replicas below one",

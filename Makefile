@@ -147,6 +147,12 @@ test-integration: ## Run all integration tests against the current cluster.
 test-integration-core: ## Run core integration tests.
 	. ./test/vars.sh && chainsaw test --config ./test/integration/.chainsaw.yaml ./test/integration/core
 
+# Live e2e needs a real cluster with OpenEverest, this provider and the Milvus
+# operator running (integration tests scale the operator to 0).
+.PHONY: test-e2e-live
+test-e2e-live: ## Create, smoke-test, upgrade and delete real Milvus instances on the current cluster.
+	./test/e2e/run-matrix.sh $(E2E_NAMESPACE)
+
 .PHONY: load-image
 load-image: ## Import the provider image (IMG) into the k3d cluster.
 	k3d image import ${IMG} -c ${K3D_CLUSTER_NAME}

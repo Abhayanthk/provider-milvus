@@ -8,6 +8,12 @@ metadata:
   name: test-instance
 status:
   phase: Ready
+  # The Milvus operator is scaled to 0, so the component has no pods.
+  components:
+    - name: standalone
+      selector: core.openeverest.io/component=standalone,core.openeverest.io/instance=test-instance
+      replicas: 0
+      readyReplicas: 0
 ---
 apiVersion: v1
 kind: Secret

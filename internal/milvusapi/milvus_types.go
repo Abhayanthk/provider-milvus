@@ -35,6 +35,8 @@ type ComponentSpec struct {
 	Image     string                       `json:"image,omitempty"`
 	Version   string                       `json:"version,omitempty"`
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+	// PodLabels are added to the pod template only, never to the selector.
+	PodLabels map[string]string `json:"podLabels,omitempty"`
 }
 
 // Component is a generic Milvus component with replicas and image metadata.

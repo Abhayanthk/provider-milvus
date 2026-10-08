@@ -2,6 +2,10 @@ componentTypes:
   milvus:
     defaultVersion: "2.6.11"
     versions:
+      - version: "2.6.15"
+        image: "milvusdb/milvus:v2.6.15"
+      - version: "2.6.15-gpu"
+        image: "milvusdb/milvus:v2.6.15-gpu"
       - version: "2.6.11"
         image: "milvusdb/milvus:v2.6.11"
       - version: "2.6.10"
@@ -9,6 +13,24 @@ componentTypes:
 
 defaultVersion: "2.6.11"
 versions:
+  - name: "2.6.15"
+    components:
+      standalone: "2.6.15"
+      proxy: "2.6.15"
+      mixCoord: "2.6.15"
+      dataNode: "2.6.15"
+      queryNode: "2.6.15"
+      streamingNode: "2.6.15"
+  # The operator orders rolling upgrades by one instance-wide image, so a
+  # bundle keeps every component on the same build.
+  - name: "2.6.15-gpu"
+    components:
+      standalone: "2.6.15-gpu"
+      proxy: "2.6.15-gpu"
+      mixCoord: "2.6.15-gpu"
+      dataNode: "2.6.15-gpu"
+      queryNode: "2.6.15-gpu"
+      streamingNode: "2.6.15-gpu"
   - name: "2.6.11"
     components:
       standalone: "2.6.11"

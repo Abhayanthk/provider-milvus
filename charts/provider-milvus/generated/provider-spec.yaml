@@ -5,6 +5,10 @@ spec:
     milvus:
       defaultVersion: 2.6.11
       versions:
+        - image: milvusdb/milvus:v2.6.15
+          version: 2.6.15
+        - image: milvusdb/milvus:v2.6.15-gpu
+          version: 2.6.15-gpu
         - image: milvusdb/milvus:v2.6.11
           version: 2.6.11
         - image: milvusdb/milvus:v2.6.10
@@ -16,6 +20,218 @@ spec:
           properties:
             configuration:
               type: string
+            groups:
+              items:
+                properties:
+                  affinity:
+                    additionalProperties: {}
+                    type: object
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  env:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                        valueFrom:
+                          properties:
+                            configMapKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                            fieldRef:
+                              properties:
+                                apiVersion:
+                                  type: string
+                                fieldPath:
+                                  type: string
+                              type: object
+                            fileKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                optional:
+                                  type: boolean
+                                path:
+                                  type: string
+                                volumeName:
+                                  type: string
+                              type: object
+                            resourceFieldRef:
+                              properties:
+                                containerName:
+                                  type: string
+                                divisor:
+                                  properties:
+                                    format:
+                                      type: string
+                                  type: object
+                                resource:
+                                  type: string
+                              type: object
+                            secretKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                          type: object
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  replicas:
+                    format: int32
+                    type: integer
+                  tolerations:
+                    items:
+                      properties:
+                        effect:
+                          type: string
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        tolerationSeconds:
+                          format: int64
+                          type: integer
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              type: array
+            pod:
+              properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  type: object
+                env:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+                      valueFrom:
+                        properties:
+                          configMapKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                          fieldRef:
+                            properties:
+                              apiVersion:
+                                type: string
+                              fieldPath:
+                                type: string
+                            type: object
+                          fileKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              optional:
+                                type: boolean
+                              path:
+                                type: string
+                              volumeName:
+                                type: string
+                            type: object
+                          resourceFieldRef:
+                            properties:
+                              containerName:
+                                type: string
+                              divisor:
+                                properties:
+                                  format:
+                                    type: string
+                                type: object
+                              resource:
+                                type: string
+                            type: object
+                          secretKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                        type: object
+                    type: object
+                  type: array
+                initContainers:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+                securityContext:
+                  additionalProperties: {}
+                  type: object
+                volumeMounts:
+                  items:
+                    properties:
+                      bindMountOptions:
+                        items:
+                          type: string
+                        type: array
+                      mountPath:
+                        type: string
+                      mountPropagation:
+                        type: string
+                      name:
+                        type: string
+                      readOnly:
+                        type: boolean
+                      recursiveReadOnly:
+                        type: string
+                      subPath:
+                        type: string
+                      subPathExpr:
+                        type: string
+                    type: object
+                  type: array
+                volumes:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+              type: object
           type: object
       type: milvus
     dataNode:
@@ -24,6 +240,218 @@ spec:
           properties:
             configuration:
               type: string
+            groups:
+              items:
+                properties:
+                  affinity:
+                    additionalProperties: {}
+                    type: object
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  env:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                        valueFrom:
+                          properties:
+                            configMapKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                            fieldRef:
+                              properties:
+                                apiVersion:
+                                  type: string
+                                fieldPath:
+                                  type: string
+                              type: object
+                            fileKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                optional:
+                                  type: boolean
+                                path:
+                                  type: string
+                                volumeName:
+                                  type: string
+                              type: object
+                            resourceFieldRef:
+                              properties:
+                                containerName:
+                                  type: string
+                                divisor:
+                                  properties:
+                                    format:
+                                      type: string
+                                  type: object
+                                resource:
+                                  type: string
+                              type: object
+                            secretKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                          type: object
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  replicas:
+                    format: int32
+                    type: integer
+                  tolerations:
+                    items:
+                      properties:
+                        effect:
+                          type: string
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        tolerationSeconds:
+                          format: int64
+                          type: integer
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              type: array
+            pod:
+              properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  type: object
+                env:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+                      valueFrom:
+                        properties:
+                          configMapKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                          fieldRef:
+                            properties:
+                              apiVersion:
+                                type: string
+                              fieldPath:
+                                type: string
+                            type: object
+                          fileKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              optional:
+                                type: boolean
+                              path:
+                                type: string
+                              volumeName:
+                                type: string
+                            type: object
+                          resourceFieldRef:
+                            properties:
+                              containerName:
+                                type: string
+                              divisor:
+                                properties:
+                                  format:
+                                    type: string
+                                type: object
+                              resource:
+                                type: string
+                            type: object
+                          secretKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                        type: object
+                    type: object
+                  type: array
+                initContainers:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+                securityContext:
+                  additionalProperties: {}
+                  type: object
+                volumeMounts:
+                  items:
+                    properties:
+                      bindMountOptions:
+                        items:
+                          type: string
+                        type: array
+                      mountPath:
+                        type: string
+                      mountPropagation:
+                        type: string
+                      name:
+                        type: string
+                      readOnly:
+                        type: boolean
+                      recursiveReadOnly:
+                        type: string
+                      subPath:
+                        type: string
+                      subPathExpr:
+                        type: string
+                    type: object
+                  type: array
+                volumes:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+              type: object
           type: object
       type: milvus
     indexCoord:
@@ -32,6 +460,218 @@ spec:
           properties:
             configuration:
               type: string
+            groups:
+              items:
+                properties:
+                  affinity:
+                    additionalProperties: {}
+                    type: object
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  env:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                        valueFrom:
+                          properties:
+                            configMapKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                            fieldRef:
+                              properties:
+                                apiVersion:
+                                  type: string
+                                fieldPath:
+                                  type: string
+                              type: object
+                            fileKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                optional:
+                                  type: boolean
+                                path:
+                                  type: string
+                                volumeName:
+                                  type: string
+                              type: object
+                            resourceFieldRef:
+                              properties:
+                                containerName:
+                                  type: string
+                                divisor:
+                                  properties:
+                                    format:
+                                      type: string
+                                  type: object
+                                resource:
+                                  type: string
+                              type: object
+                            secretKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                          type: object
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  replicas:
+                    format: int32
+                    type: integer
+                  tolerations:
+                    items:
+                      properties:
+                        effect:
+                          type: string
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        tolerationSeconds:
+                          format: int64
+                          type: integer
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              type: array
+            pod:
+              properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  type: object
+                env:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+                      valueFrom:
+                        properties:
+                          configMapKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                          fieldRef:
+                            properties:
+                              apiVersion:
+                                type: string
+                              fieldPath:
+                                type: string
+                            type: object
+                          fileKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              optional:
+                                type: boolean
+                              path:
+                                type: string
+                              volumeName:
+                                type: string
+                            type: object
+                          resourceFieldRef:
+                            properties:
+                              containerName:
+                                type: string
+                              divisor:
+                                properties:
+                                  format:
+                                    type: string
+                                type: object
+                              resource:
+                                type: string
+                            type: object
+                          secretKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                        type: object
+                    type: object
+                  type: array
+                initContainers:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+                securityContext:
+                  additionalProperties: {}
+                  type: object
+                volumeMounts:
+                  items:
+                    properties:
+                      bindMountOptions:
+                        items:
+                          type: string
+                        type: array
+                      mountPath:
+                        type: string
+                      mountPropagation:
+                        type: string
+                      name:
+                        type: string
+                      readOnly:
+                        type: boolean
+                      recursiveReadOnly:
+                        type: string
+                      subPath:
+                        type: string
+                      subPathExpr:
+                        type: string
+                    type: object
+                  type: array
+                volumes:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+              type: object
           type: object
       type: milvus
     indexNode:
@@ -40,6 +680,218 @@ spec:
           properties:
             configuration:
               type: string
+            groups:
+              items:
+                properties:
+                  affinity:
+                    additionalProperties: {}
+                    type: object
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  env:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                        valueFrom:
+                          properties:
+                            configMapKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                            fieldRef:
+                              properties:
+                                apiVersion:
+                                  type: string
+                                fieldPath:
+                                  type: string
+                              type: object
+                            fileKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                optional:
+                                  type: boolean
+                                path:
+                                  type: string
+                                volumeName:
+                                  type: string
+                              type: object
+                            resourceFieldRef:
+                              properties:
+                                containerName:
+                                  type: string
+                                divisor:
+                                  properties:
+                                    format:
+                                      type: string
+                                  type: object
+                                resource:
+                                  type: string
+                              type: object
+                            secretKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                          type: object
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  replicas:
+                    format: int32
+                    type: integer
+                  tolerations:
+                    items:
+                      properties:
+                        effect:
+                          type: string
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        tolerationSeconds:
+                          format: int64
+                          type: integer
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              type: array
+            pod:
+              properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  type: object
+                env:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+                      valueFrom:
+                        properties:
+                          configMapKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                          fieldRef:
+                            properties:
+                              apiVersion:
+                                type: string
+                              fieldPath:
+                                type: string
+                            type: object
+                          fileKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              optional:
+                                type: boolean
+                              path:
+                                type: string
+                              volumeName:
+                                type: string
+                            type: object
+                          resourceFieldRef:
+                            properties:
+                              containerName:
+                                type: string
+                              divisor:
+                                properties:
+                                  format:
+                                    type: string
+                                type: object
+                              resource:
+                                type: string
+                            type: object
+                          secretKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                        type: object
+                    type: object
+                  type: array
+                initContainers:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+                securityContext:
+                  additionalProperties: {}
+                  type: object
+                volumeMounts:
+                  items:
+                    properties:
+                      bindMountOptions:
+                        items:
+                          type: string
+                        type: array
+                      mountPath:
+                        type: string
+                      mountPropagation:
+                        type: string
+                      name:
+                        type: string
+                      readOnly:
+                        type: boolean
+                      recursiveReadOnly:
+                        type: string
+                      subPath:
+                        type: string
+                      subPathExpr:
+                        type: string
+                    type: object
+                  type: array
+                volumes:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+              type: object
           type: object
       type: milvus
     mixCoord:
@@ -48,6 +900,218 @@ spec:
           properties:
             configuration:
               type: string
+            groups:
+              items:
+                properties:
+                  affinity:
+                    additionalProperties: {}
+                    type: object
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  env:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                        valueFrom:
+                          properties:
+                            configMapKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                            fieldRef:
+                              properties:
+                                apiVersion:
+                                  type: string
+                                fieldPath:
+                                  type: string
+                              type: object
+                            fileKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                optional:
+                                  type: boolean
+                                path:
+                                  type: string
+                                volumeName:
+                                  type: string
+                              type: object
+                            resourceFieldRef:
+                              properties:
+                                containerName:
+                                  type: string
+                                divisor:
+                                  properties:
+                                    format:
+                                      type: string
+                                  type: object
+                                resource:
+                                  type: string
+                              type: object
+                            secretKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                          type: object
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  replicas:
+                    format: int32
+                    type: integer
+                  tolerations:
+                    items:
+                      properties:
+                        effect:
+                          type: string
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        tolerationSeconds:
+                          format: int64
+                          type: integer
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              type: array
+            pod:
+              properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  type: object
+                env:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+                      valueFrom:
+                        properties:
+                          configMapKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                          fieldRef:
+                            properties:
+                              apiVersion:
+                                type: string
+                              fieldPath:
+                                type: string
+                            type: object
+                          fileKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              optional:
+                                type: boolean
+                              path:
+                                type: string
+                              volumeName:
+                                type: string
+                            type: object
+                          resourceFieldRef:
+                            properties:
+                              containerName:
+                                type: string
+                              divisor:
+                                properties:
+                                  format:
+                                    type: string
+                                type: object
+                              resource:
+                                type: string
+                            type: object
+                          secretKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                        type: object
+                    type: object
+                  type: array
+                initContainers:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+                securityContext:
+                  additionalProperties: {}
+                  type: object
+                volumeMounts:
+                  items:
+                    properties:
+                      bindMountOptions:
+                        items:
+                          type: string
+                        type: array
+                      mountPath:
+                        type: string
+                      mountPropagation:
+                        type: string
+                      name:
+                        type: string
+                      readOnly:
+                        type: boolean
+                      recursiveReadOnly:
+                        type: string
+                      subPath:
+                        type: string
+                      subPathExpr:
+                        type: string
+                    type: object
+                  type: array
+                volumes:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+              type: object
           type: object
       type: milvus
     proxy:
@@ -56,6 +1120,218 @@ spec:
           properties:
             configuration:
               type: string
+            groups:
+              items:
+                properties:
+                  affinity:
+                    additionalProperties: {}
+                    type: object
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  env:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                        valueFrom:
+                          properties:
+                            configMapKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                            fieldRef:
+                              properties:
+                                apiVersion:
+                                  type: string
+                                fieldPath:
+                                  type: string
+                              type: object
+                            fileKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                optional:
+                                  type: boolean
+                                path:
+                                  type: string
+                                volumeName:
+                                  type: string
+                              type: object
+                            resourceFieldRef:
+                              properties:
+                                containerName:
+                                  type: string
+                                divisor:
+                                  properties:
+                                    format:
+                                      type: string
+                                  type: object
+                                resource:
+                                  type: string
+                              type: object
+                            secretKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                          type: object
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  replicas:
+                    format: int32
+                    type: integer
+                  tolerations:
+                    items:
+                      properties:
+                        effect:
+                          type: string
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        tolerationSeconds:
+                          format: int64
+                          type: integer
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              type: array
+            pod:
+              properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  type: object
+                env:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+                      valueFrom:
+                        properties:
+                          configMapKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                          fieldRef:
+                            properties:
+                              apiVersion:
+                                type: string
+                              fieldPath:
+                                type: string
+                            type: object
+                          fileKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              optional:
+                                type: boolean
+                              path:
+                                type: string
+                              volumeName:
+                                type: string
+                            type: object
+                          resourceFieldRef:
+                            properties:
+                              containerName:
+                                type: string
+                              divisor:
+                                properties:
+                                  format:
+                                    type: string
+                                type: object
+                              resource:
+                                type: string
+                            type: object
+                          secretKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                        type: object
+                    type: object
+                  type: array
+                initContainers:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+                securityContext:
+                  additionalProperties: {}
+                  type: object
+                volumeMounts:
+                  items:
+                    properties:
+                      bindMountOptions:
+                        items:
+                          type: string
+                        type: array
+                      mountPath:
+                        type: string
+                      mountPropagation:
+                        type: string
+                      name:
+                        type: string
+                      readOnly:
+                        type: boolean
+                      recursiveReadOnly:
+                        type: string
+                      subPath:
+                        type: string
+                      subPathExpr:
+                        type: string
+                    type: object
+                  type: array
+                volumes:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+              type: object
           type: object
       type: milvus
     queryCoord:
@@ -64,6 +1340,218 @@ spec:
           properties:
             configuration:
               type: string
+            groups:
+              items:
+                properties:
+                  affinity:
+                    additionalProperties: {}
+                    type: object
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  env:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                        valueFrom:
+                          properties:
+                            configMapKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                            fieldRef:
+                              properties:
+                                apiVersion:
+                                  type: string
+                                fieldPath:
+                                  type: string
+                              type: object
+                            fileKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                optional:
+                                  type: boolean
+                                path:
+                                  type: string
+                                volumeName:
+                                  type: string
+                              type: object
+                            resourceFieldRef:
+                              properties:
+                                containerName:
+                                  type: string
+                                divisor:
+                                  properties:
+                                    format:
+                                      type: string
+                                  type: object
+                                resource:
+                                  type: string
+                              type: object
+                            secretKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                          type: object
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  replicas:
+                    format: int32
+                    type: integer
+                  tolerations:
+                    items:
+                      properties:
+                        effect:
+                          type: string
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        tolerationSeconds:
+                          format: int64
+                          type: integer
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              type: array
+            pod:
+              properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  type: object
+                env:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+                      valueFrom:
+                        properties:
+                          configMapKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                          fieldRef:
+                            properties:
+                              apiVersion:
+                                type: string
+                              fieldPath:
+                                type: string
+                            type: object
+                          fileKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              optional:
+                                type: boolean
+                              path:
+                                type: string
+                              volumeName:
+                                type: string
+                            type: object
+                          resourceFieldRef:
+                            properties:
+                              containerName:
+                                type: string
+                              divisor:
+                                properties:
+                                  format:
+                                    type: string
+                                type: object
+                              resource:
+                                type: string
+                            type: object
+                          secretKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                        type: object
+                    type: object
+                  type: array
+                initContainers:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+                securityContext:
+                  additionalProperties: {}
+                  type: object
+                volumeMounts:
+                  items:
+                    properties:
+                      bindMountOptions:
+                        items:
+                          type: string
+                        type: array
+                      mountPath:
+                        type: string
+                      mountPropagation:
+                        type: string
+                      name:
+                        type: string
+                      readOnly:
+                        type: boolean
+                      recursiveReadOnly:
+                        type: string
+                      subPath:
+                        type: string
+                      subPathExpr:
+                        type: string
+                    type: object
+                  type: array
+                volumes:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+              type: object
           type: object
       type: milvus
     queryNode:
@@ -72,6 +1560,218 @@ spec:
           properties:
             configuration:
               type: string
+            groups:
+              items:
+                properties:
+                  affinity:
+                    additionalProperties: {}
+                    type: object
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  env:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                        valueFrom:
+                          properties:
+                            configMapKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                            fieldRef:
+                              properties:
+                                apiVersion:
+                                  type: string
+                                fieldPath:
+                                  type: string
+                              type: object
+                            fileKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                optional:
+                                  type: boolean
+                                path:
+                                  type: string
+                                volumeName:
+                                  type: string
+                              type: object
+                            resourceFieldRef:
+                              properties:
+                                containerName:
+                                  type: string
+                                divisor:
+                                  properties:
+                                    format:
+                                      type: string
+                                  type: object
+                                resource:
+                                  type: string
+                              type: object
+                            secretKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                          type: object
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  replicas:
+                    format: int32
+                    type: integer
+                  tolerations:
+                    items:
+                      properties:
+                        effect:
+                          type: string
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        tolerationSeconds:
+                          format: int64
+                          type: integer
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              type: array
+            pod:
+              properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  type: object
+                env:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+                      valueFrom:
+                        properties:
+                          configMapKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                          fieldRef:
+                            properties:
+                              apiVersion:
+                                type: string
+                              fieldPath:
+                                type: string
+                            type: object
+                          fileKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              optional:
+                                type: boolean
+                              path:
+                                type: string
+                              volumeName:
+                                type: string
+                            type: object
+                          resourceFieldRef:
+                            properties:
+                              containerName:
+                                type: string
+                              divisor:
+                                properties:
+                                  format:
+                                    type: string
+                                type: object
+                              resource:
+                                type: string
+                            type: object
+                          secretKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                        type: object
+                    type: object
+                  type: array
+                initContainers:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+                securityContext:
+                  additionalProperties: {}
+                  type: object
+                volumeMounts:
+                  items:
+                    properties:
+                      bindMountOptions:
+                        items:
+                          type: string
+                        type: array
+                      mountPath:
+                        type: string
+                      mountPropagation:
+                        type: string
+                      name:
+                        type: string
+                      readOnly:
+                        type: boolean
+                      recursiveReadOnly:
+                        type: string
+                      subPath:
+                        type: string
+                      subPathExpr:
+                        type: string
+                    type: object
+                  type: array
+                volumes:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+              type: object
           type: object
       type: milvus
     rootCoord:
@@ -80,6 +1780,218 @@ spec:
           properties:
             configuration:
               type: string
+            groups:
+              items:
+                properties:
+                  affinity:
+                    additionalProperties: {}
+                    type: object
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  env:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                        valueFrom:
+                          properties:
+                            configMapKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                            fieldRef:
+                              properties:
+                                apiVersion:
+                                  type: string
+                                fieldPath:
+                                  type: string
+                              type: object
+                            fileKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                optional:
+                                  type: boolean
+                                path:
+                                  type: string
+                                volumeName:
+                                  type: string
+                              type: object
+                            resourceFieldRef:
+                              properties:
+                                containerName:
+                                  type: string
+                                divisor:
+                                  properties:
+                                    format:
+                                      type: string
+                                  type: object
+                                resource:
+                                  type: string
+                              type: object
+                            secretKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                          type: object
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  replicas:
+                    format: int32
+                    type: integer
+                  tolerations:
+                    items:
+                      properties:
+                        effect:
+                          type: string
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        tolerationSeconds:
+                          format: int64
+                          type: integer
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              type: array
+            pod:
+              properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  type: object
+                env:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+                      valueFrom:
+                        properties:
+                          configMapKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                          fieldRef:
+                            properties:
+                              apiVersion:
+                                type: string
+                              fieldPath:
+                                type: string
+                            type: object
+                          fileKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              optional:
+                                type: boolean
+                              path:
+                                type: string
+                              volumeName:
+                                type: string
+                            type: object
+                          resourceFieldRef:
+                            properties:
+                              containerName:
+                                type: string
+                              divisor:
+                                properties:
+                                  format:
+                                    type: string
+                                type: object
+                              resource:
+                                type: string
+                            type: object
+                          secretKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                        type: object
+                    type: object
+                  type: array
+                initContainers:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+                securityContext:
+                  additionalProperties: {}
+                  type: object
+                volumeMounts:
+                  items:
+                    properties:
+                      bindMountOptions:
+                        items:
+                          type: string
+                        type: array
+                      mountPath:
+                        type: string
+                      mountPropagation:
+                        type: string
+                      name:
+                        type: string
+                      readOnly:
+                        type: boolean
+                      recursiveReadOnly:
+                        type: string
+                      subPath:
+                        type: string
+                      subPathExpr:
+                        type: string
+                    type: object
+                  type: array
+                volumes:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+              type: object
           type: object
       type: milvus
     standalone:
@@ -88,6 +2000,218 @@ spec:
           properties:
             configuration:
               type: string
+            groups:
+              items:
+                properties:
+                  affinity:
+                    additionalProperties: {}
+                    type: object
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  env:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                        valueFrom:
+                          properties:
+                            configMapKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                            fieldRef:
+                              properties:
+                                apiVersion:
+                                  type: string
+                                fieldPath:
+                                  type: string
+                              type: object
+                            fileKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                optional:
+                                  type: boolean
+                                path:
+                                  type: string
+                                volumeName:
+                                  type: string
+                              type: object
+                            resourceFieldRef:
+                              properties:
+                                containerName:
+                                  type: string
+                                divisor:
+                                  properties:
+                                    format:
+                                      type: string
+                                  type: object
+                                resource:
+                                  type: string
+                              type: object
+                            secretKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                          type: object
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  replicas:
+                    format: int32
+                    type: integer
+                  tolerations:
+                    items:
+                      properties:
+                        effect:
+                          type: string
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        tolerationSeconds:
+                          format: int64
+                          type: integer
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              type: array
+            pod:
+              properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  type: object
+                env:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+                      valueFrom:
+                        properties:
+                          configMapKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                          fieldRef:
+                            properties:
+                              apiVersion:
+                                type: string
+                              fieldPath:
+                                type: string
+                            type: object
+                          fileKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              optional:
+                                type: boolean
+                              path:
+                                type: string
+                              volumeName:
+                                type: string
+                            type: object
+                          resourceFieldRef:
+                            properties:
+                              containerName:
+                                type: string
+                              divisor:
+                                properties:
+                                  format:
+                                    type: string
+                                type: object
+                              resource:
+                                type: string
+                            type: object
+                          secretKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                        type: object
+                    type: object
+                  type: array
+                initContainers:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+                securityContext:
+                  additionalProperties: {}
+                  type: object
+                volumeMounts:
+                  items:
+                    properties:
+                      bindMountOptions:
+                        items:
+                          type: string
+                        type: array
+                      mountPath:
+                        type: string
+                      mountPropagation:
+                        type: string
+                      name:
+                        type: string
+                      readOnly:
+                        type: boolean
+                      recursiveReadOnly:
+                        type: string
+                      subPath:
+                        type: string
+                      subPathExpr:
+                        type: string
+                    type: object
+                  type: array
+                volumes:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+              type: object
           type: object
       type: milvus
     streamingNode:
@@ -96,6 +2220,218 @@ spec:
           properties:
             configuration:
               type: string
+            groups:
+              items:
+                properties:
+                  affinity:
+                    additionalProperties: {}
+                    type: object
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  env:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                        valueFrom:
+                          properties:
+                            configMapKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                            fieldRef:
+                              properties:
+                                apiVersion:
+                                  type: string
+                                fieldPath:
+                                  type: string
+                              type: object
+                            fileKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                optional:
+                                  type: boolean
+                                path:
+                                  type: string
+                                volumeName:
+                                  type: string
+                              type: object
+                            resourceFieldRef:
+                              properties:
+                                containerName:
+                                  type: string
+                                divisor:
+                                  properties:
+                                    format:
+                                      type: string
+                                  type: object
+                                resource:
+                                  type: string
+                              type: object
+                            secretKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                localObjectReference:
+                                  properties:
+                                    name:
+                                      type: string
+                                  type: object
+                                optional:
+                                  type: boolean
+                              type: object
+                          type: object
+                      type: object
+                    type: array
+                  name:
+                    type: string
+                  nodeSelector:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  replicas:
+                    format: int32
+                    type: integer
+                  tolerations:
+                    items:
+                      properties:
+                        effect:
+                          type: string
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        tolerationSeconds:
+                          format: int64
+                          type: integer
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              type: array
+            pod:
+              properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  type: object
+                env:
+                  items:
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+                      valueFrom:
+                        properties:
+                          configMapKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                          fieldRef:
+                            properties:
+                              apiVersion:
+                                type: string
+                              fieldPath:
+                                type: string
+                            type: object
+                          fileKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              optional:
+                                type: boolean
+                              path:
+                                type: string
+                              volumeName:
+                                type: string
+                            type: object
+                          resourceFieldRef:
+                            properties:
+                              containerName:
+                                type: string
+                              divisor:
+                                properties:
+                                  format:
+                                    type: string
+                                type: object
+                              resource:
+                                type: string
+                            type: object
+                          secretKeyRef:
+                            properties:
+                              key:
+                                type: string
+                              localObjectReference:
+                                properties:
+                                  name:
+                                    type: string
+                                type: object
+                              optional:
+                                type: boolean
+                            type: object
+                        type: object
+                    type: object
+                  type: array
+                initContainers:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+                securityContext:
+                  additionalProperties: {}
+                  type: object
+                volumeMounts:
+                  items:
+                    properties:
+                      bindMountOptions:
+                        items:
+                          type: string
+                        type: array
+                      mountPath:
+                        type: string
+                      mountPropagation:
+                        type: string
+                      name:
+                        type: string
+                      readOnly:
+                        type: boolean
+                      recursiveReadOnly:
+                        type: string
+                      subPath:
+                        type: string
+                      subPathExpr:
+                        type: string
+                    type: object
+                  type: array
+                volumes:
+                  items:
+                    additionalProperties: {}
+                    type: object
+                  type: array
+              type: object
           type: object
       type: milvus
   defaultVersion: 2.6.11
@@ -183,7 +2519,11 @@ spec:
                               type: string
                           type: object
                       type: object
+                    rootPath:
+                      type: string
                   type: object
+                messageStreamType:
+                  type: string
                 pulsar:
                   properties:
                     bookkeeper:
@@ -302,6 +2642,8 @@ spec:
                   properties:
                     bucket:
                       type: string
+                    cloudProvider:
+                      type: string
                     credentialsSecret:
                       type: string
                     endpoint:
@@ -313,6 +2655,8 @@ spec:
                         size:
                           type: string
                       type: object
+                    region:
+                      type: string
                     replicas:
                       format: int32
                       type: integer
@@ -333,8 +2677,14 @@ spec:
                               type: string
                           type: object
                       type: object
+                    rootPath:
+                      type: string
+                    serviceAccountName:
+                      type: string
                     type:
                       type: string
+                    useIAM:
+                      type: boolean
                     useSSL:
                       type: boolean
                   type: object
@@ -389,10 +2739,14 @@ spec:
                               type: string
                           type: object
                       type: object
+                    rootPath:
+                      type: string
                   type: object
                 storage:
                   properties:
                     bucket:
+                      type: string
+                    cloudProvider:
                       type: string
                     credentialsSecret:
                       type: string
@@ -405,6 +2759,8 @@ spec:
                         size:
                           type: string
                       type: object
+                    region:
+                      type: string
                     replicas:
                       format: int32
                       type: integer
@@ -425,8 +2781,14 @@ spec:
                               type: string
                           type: object
                       type: object
+                    rootPath:
+                      type: string
+                    serviceAccountName:
+                      type: string
                     type:
                       type: string
+                    useIAM:
+                      type: boolean
                     useSSL:
                       type: boolean
                   type: object
@@ -481,6 +2843,7 @@ spec:
             replicas:
               fieldParams:
                 defaultValue: 1
+                helperText: Extra replicas run as hot standbys (active-standby)
                 label: Replicas
               path: spec.components.mixCoord.replicas
               uiType: number
@@ -625,7 +2988,7 @@ spec:
                     - volumes
                   uiType: group
               groupType: accordion
-              label: BookKeeper
+              label: Pulsar BookKeeper
               uiType: group
             broker:
               components:
@@ -669,7 +3032,7 @@ spec:
                     - resources
                   uiType: group
               groupType: accordion
-              label: Broker
+              label: Pulsar broker
               uiType: group
             proxy:
               components:
@@ -713,8 +3076,23 @@ spec:
                     - resources
                   uiType: group
               groupType: accordion
-              label: Proxy
+              label: Pulsar proxy
               uiType: group
+            type:
+              fieldParams:
+                defaultValue: woodpecker
+                label: Type
+                modes:
+                  edit:
+                    disabled: true
+                    helperText: The message stream cannot be changed after creation
+                options:
+                  - label: Woodpecker
+                    value: woodpecker
+                  - label: Pulsar
+                    value: pulsar
+              path: spec.topology.parameters.dependencies.messageStreamType
+              uiType: select
             zookeeper:
               components:
                 settings:
@@ -773,14 +3151,15 @@ spec:
                     - volumes
                   uiType: group
               groupType: accordion
-              label: ZooKeeper
+              label: Pulsar ZooKeeper
               uiType: group
           componentsOrder:
+            - type
             - broker
             - bookkeeper
             - zookeeper
             - proxy
-          description: Configure the bundled message stream.
+          description: Choose the write-ahead log. Woodpecker keeps it in the object storage; the Pulsar settings apply only when Pulsar is selected.
           label: Message stream
         metadataStore:
           components:
@@ -1225,6 +3604,22 @@ spec:
         - metadataStore
         - advanced
   versions:
+    - components:
+        dataNode: 2.6.15
+        mixCoord: 2.6.15
+        proxy: 2.6.15
+        queryNode: 2.6.15
+        standalone: 2.6.15
+        streamingNode: 2.6.15
+      name: 2.6.15
+    - components:
+        dataNode: 2.6.15-gpu
+        mixCoord: 2.6.15-gpu
+        proxy: 2.6.15-gpu
+        queryNode: 2.6.15-gpu
+        standalone: 2.6.15-gpu
+        streamingNode: 2.6.15-gpu
+      name: 2.6.15-gpu
     - components:
         dataNode: 2.6.11
         mixCoord: 2.6.11

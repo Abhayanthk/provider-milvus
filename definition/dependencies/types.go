@@ -13,6 +13,12 @@ import (
 	"encoding/json"
 )
 
+// Message stream types selectable in cluster mode.
+const (
+	MessageStreamWoodpecker = "woodpecker"
+	MessageStreamPulsar     = "pulsar"
+)
+
 // Quantity is a Kubernetes resource quantity such as "500m", "1", or "512Mi".
 // It decodes from either a JSON string or a bare number, so numeric UI inputs
 // (e.g. cpu: 0.1) do not fail the whole topology-parameters block.
@@ -68,6 +74,10 @@ type Etcd struct {
 	// Endpoints lists external etcd endpoints (host:port). Used only when
 	// External is true.
 	Endpoints []string `json:"endpoints,omitempty"`
+	// RootPath prefixes every metadata key, so several instances can share one
+	// external etcd. Defaults to the Instance name; cannot be changed later.
+	// Used only when External is true.
+	RootPath string `json:"rootPath,omitempty"`
 	// Replicas sets the bundled etcd cluster size. Ignored when External.
 	Replicas *int32 `json:"replicas,omitempty"`
 	// Resources sizes the bundled etcd pods. Ignored when External.
@@ -88,8 +98,25 @@ type Storage struct {
 	// Azure. Used only when External is true.
 	Type string `json:"type,omitempty"`
 	// CredentialsSecret names a Secret in the Instance namespace holding the
-	// external storage's "accesskey" and "secretkey". Required when External.
+	// external storage's "accesskey" and "secretkey". Required when External,
+	// unless UseIAM is set.
 	CredentialsSecret string `json:"credentialsSecret,omitempty"`
+	// UseIAM authenticates with the pods' cloud identity (e.g. EKS IRSA, GKE
+	// workload identity) instead of static keys. Used only when External.
+	UseIAM bool `json:"useIAM,omitempty"`
+	// ServiceAccountName runs the Milvus pods as this ServiceAccount, which
+	// carries the cloud identity for UseIAM. Used only when External.
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+	// Region is the external bucket's region, e.g. us-east-1. Used only when
+	// External is true.
+	Region string `json:"region,omitempty"`
+	// CloudProvider selects Milvus' provider-specific client, e.g. aws, gcp,
+	// azure or aliyun. Used only when External is true.
+	CloudProvider string `json:"cloudProvider,omitempty"`
+	// RootPath prefixes every object Milvus writes, so several instances can
+	// share one bucket. Defaults to "files"; cannot be changed later. Used only
+	// when External is true.
+	RootPath string `json:"rootPath,omitempty"`
 	// Bucket is the external bucket. Defaults to the Instance name. Used only
 	// when External is true.
 	Bucket string `json:"bucket,omitempty"`

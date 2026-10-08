@@ -73,6 +73,7 @@ provider itself is covered under [Installation](#installation).
 | Authentication | ✅ | A `root` credential is generated and published to the connection Secret |
 | Network exposure | ✅ | ClusterIP, NodePort or LoadBalancer via the component `service` |
 | Pod scheduling | ✅ | Per-component `schedulingPolicy` (affinity, tolerations, node selector, topology spread, scheduler); not applied to bundled dependencies |
+| Pod customization | ✅ | Per-component `parameters.pod`: annotations, env, volumes, volume mounts, container security context, init containers |
 | Monitoring | ❌ | |
 | TLS | ❌ | |
 
@@ -200,6 +201,86 @@ spec:
 - **LoadBalancer** — the connection host is the load balancer address once assigned.
 - **NodePort** — the connection host is a node address paired with the assigned node port.
 
+### Customize component pods
+
+`parameters.pod` adds pod-level settings to one component, e.g. to attach an
+SR-IOV/RDMA secondary network to the query nodes:
+
+```yaml
+spec:
+  components:
+    queryNode:
+      type: milvus
+      resources:
+        limits:
+          nvidia.com/gpu: "1"
+          rdma/hca: "1"
+      parameters:
+        pod:
+          annotations:
+            k8s.v1.cni.cncf.io/networks: sriov-rdma
+          securityContext:
+            capabilities:
+              add: ["IPC_LOCK"]
+```
+
+`volumes`, `securityContext` and `initContainers` take Kubernetes objects and
+are validated when the instance is reconciled.
+
+### Split a component across node pools
+
+`parameters.groups` runs `proxy`, `dataNode`, `queryNode` or `streamingNode` as
+several independently placed workloads, e.g. query nodes on two GPU models.
+Groups inherit the component's image, resources and pod settings; the
+component's `replicas`, when set, must equal the groups' total:
+
+```yaml
+spec:
+  components:
+    queryNode:
+      type: milvus
+      replicas: 6
+      parameters:
+        groups:
+          - name: l40s
+            replicas: 4
+            nodeSelector:
+              nvidia.com/gpu.product: NVIDIA-L40S
+          - name: h200
+            replicas: 2
+            nodeSelector:
+              nvidia.com/gpu.product: NVIDIA-H200
+```
+
+### Bring your own etcd and object storage
+
+Point Milvus at existing services instead of the bundled ones. With `useIAM`
+the pods authenticate through the ServiceAccount's cloud identity (e.g. EKS
+IRSA), so no credentials Secret is needed. `rootPath` lets several instances
+share one etcd or bucket and cannot be changed after creation:
+
+```yaml
+spec:
+  topology:
+    type: cluster
+    parameters:
+      dependencies:
+        etcd:
+          external: true
+          endpoints: ["etcd-0.etcd:2379", "etcd-1.etcd:2379", "etcd-2.etcd:2379"]
+          rootPath: vectors-prod
+        storage:
+          external: true
+          type: S3
+          endpoint: s3.us-east-1.amazonaws.com:443
+          useSSL: true
+          bucket: vectors
+          region: us-east-1
+          cloudProvider: aws
+          useIAM: true
+          serviceAccountName: milvus-s3
+```
+
 ## Topologies
 
 <!-- TODO(sdk): these blocks are hand-maintained until `provider-sdk generate` fills them
@@ -209,7 +290,7 @@ spec:
 | Topology | Default | Description |
 |---|---|---|
 | `standalone` | ✅ | Single-process Milvus; smallest footprint, ideal for experimentation |
-| `cluster` | | Independently scalable components with Pulsar as the message stream |
+| `cluster` | | Independently scalable components; Woodpecker (default) or Pulsar as the message stream |
 <!-- END GENERATED: topologies -->
 
 ## Versions
@@ -217,11 +298,19 @@ spec:
 <!-- BEGIN GENERATED: versions -->
 | Version bundle | Default |  |
 |---|---|---|
+| `2.6.15` | | |
+| `2.6.15-gpu` | | GPU build of every component |
 | `2.6.11` | ✅ | |
 | `2.6.10` | | |
 <!-- END GENERATED: versions -->
 
 Source of truth: [definition/versions.yaml](definition/versions.yaml).
+
+GPU bundles only switch images; request GPUs per component with
+`resources.limits["nvidia.com/gpu"]` and place the pods with `schedulingPolicy`.
+`spec.components.<name>.image` overrides a single component's image (e.g. a
+registry mirror); components on different images are updated all at once
+instead of in the operator's dependency order.
 
 <!-- TODO(provider): document the supported upgrade paths (minor only? operator first?). -->
 

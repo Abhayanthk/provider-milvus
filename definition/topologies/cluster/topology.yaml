@@ -201,6 +201,7 @@ ui:
           fieldParams:
             label: Replicas
             defaultValue: 1
+            helperText: Extra replicas run as hot standbys (active-standby)
           validation:
             min: 1
         resources:
@@ -373,12 +374,27 @@ ui:
         - resources
     messageStream:
       label: Message stream
-      description: Configure the bundled message stream.
+      description: Choose the write-ahead log. Woodpecker keeps it in the object storage; the Pulsar settings apply only when Pulsar is selected.
       components:
+        type:
+          uiType: select
+          path: spec.topology.parameters.dependencies.messageStreamType
+          fieldParams:
+            label: Type
+            defaultValue: woodpecker
+            options:
+              - label: Woodpecker
+                value: woodpecker
+              - label: Pulsar
+                value: pulsar
+            modes:
+              edit:
+                disabled: true
+                helperText: The message stream cannot be changed after creation
         broker:
           uiType: group
           groupType: accordion
-          label: Broker
+          label: Pulsar broker
           components:
             settings:
               uiType: group
@@ -422,7 +438,7 @@ ui:
         bookkeeper:
           uiType: group
           groupType: accordion
-          label: BookKeeper
+          label: Pulsar BookKeeper
           components:
             settings:
               uiType: group
@@ -493,7 +509,7 @@ ui:
         zookeeper:
           uiType: group
           groupType: accordion
-          label: ZooKeeper
+          label: Pulsar ZooKeeper
           components:
             settings:
               uiType: group
@@ -553,7 +569,7 @@ ui:
         proxy:
           uiType: group
           groupType: accordion
-          label: Proxy
+          label: Pulsar proxy
           components:
             settings:
               uiType: group
@@ -595,6 +611,7 @@ ui:
                 - replicas
                 - resources
       componentsOrder:
+        - type
         - broker
         - bookkeeper
         - zookeeper

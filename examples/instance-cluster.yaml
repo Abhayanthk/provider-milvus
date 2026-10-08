@@ -1,6 +1,8 @@
 # Example cluster Milvus Instance for the provider-milvus provider.
-# Cluster mode splits Milvus into independently scalable components and uses
-# Pulsar as its message stream (deployed by the operator). It is heavier than
+# Cluster mode splits Milvus into independently scalable components. Its
+# write-ahead log defaults to Woodpecker, which keeps the WAL in the object
+# storage; set dependencies.messageStreamType: pulsar to run a bundled Pulsar
+# instead (the pulsar block below is ignored otherwise). It is heavier than
 # standalone — prefer standalone for experimentation.
 #
 # Prerequisites:
@@ -18,10 +20,12 @@ spec:
   version: "2.6.11"
   topology:
     type: cluster
-    # Tune the operator-managed dependencies (etcd, Pulsar, MinIO). Every field
-    # is optional; unset fields fall back to the provider's modest defaults.
+    # Tune the operator-managed dependencies (etcd, MinIO, optional Pulsar).
+    # Every field is optional; unset fields fall back to the provider's modest
+    # defaults.
     parameters:
       dependencies:
+        messageStreamType: woodpecker
         etcd:
           replicas: 3
           resources:

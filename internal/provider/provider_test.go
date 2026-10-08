@@ -240,7 +240,8 @@ func TestSyncSeedsAuthAndStatusSurfacesCredentials(t *testing.T) {
 	assert.NotEmpty(t, password)
 
 	cr.Status.Status = milvusapi.StatusHealthy
-	require.NoError(t, c.Apply(cr))
+	// Stands in for the operator reporting health.
+	require.NoError(t, c.Client().Update(c.Context(), cr))
 
 	status, err := p.Status(c)
 	require.NoError(t, err)

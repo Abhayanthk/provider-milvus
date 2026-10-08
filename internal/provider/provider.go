@@ -314,14 +314,36 @@ func (p *Provider) Status(c *controller.Context) (controller.Status, error) {
 			},
 		}), nil
 	case milvusapi.StatusPending, milvusapi.StatusDeleting:
-		return controller.Provisioning("Milvus is being initialized or updated"), nil
+		return controller.Provisioning(notReadyMessage(cr, "Milvus is being initialized or updated")), nil
 	case milvusapi.StatusStopped:
 		return controller.Pending("Milvus is stopped"), nil
 	case milvusapi.StatusUnhealthy:
-		return controller.Provisioning("Milvus is unhealthy"), nil
+		return controller.Provisioning(notReadyMessage(cr, "Milvus is unhealthy")), nil
 	default:
 		return controller.Provisioning("Milvus is initializing"), nil
 	}
+}
+
+// notReadyConditions are checked in dependency order, so the root cause wins
+// over the Milvus components waiting on it.
+var notReadyConditions = []string{"EtcdReady", "StorageReady", "MsgStreamReady", "MilvusReady"}
+
+// notReadyMessage names the first failing operator condition, or returns
+// fallback when none is reported.
+func notReadyMessage(cr *milvusapi.Milvus, fallback string) string {
+	for _, conditionType := range notReadyConditions {
+		for _, condition := range cr.Status.Conditions {
+			if condition.Type != conditionType || condition.Status != corev1.ConditionFalse {
+				continue
+			}
+			detail := condition.Message
+			if detail == "" {
+				detail = condition.Reason
+			}
+			return fmt.Sprintf("%s: %s: %s", fallback, conditionType, detail)
+		}
+	}
+	return fallback
 }
 
 // Cleanup handles deletion of provider-managed resources.

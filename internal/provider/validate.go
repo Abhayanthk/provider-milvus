@@ -81,6 +81,10 @@ func validateInstance(c *controller.Context) error {
 		return err
 	}
 
+	if err := validateRootPathsUnchanged(c); err != nil {
+		return err
+	}
+
 	if err := validateServiceExposure(instance.Spec.Components, topologyType); err != nil {
 		return err
 	}
@@ -89,6 +93,36 @@ func validateInstance(c *controller.Context) error {
 		return err
 	}
 
+	if err := validateComponentParameters(c); err != nil {
+		return err
+	}
+
+	if topologyType == "cluster" {
+		if err := validateMixCoordStandby(c); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateMixCoordStandby rejects several MixCoord replicas when the user's
+// configuration disables active-standby: they would all try to be active.
+func validateMixCoordStandby(c *controller.Context) error {
+	replicas := c.Instance().Spec.Components[common.ComponentMixCoord].Replicas
+	if replicas == nil || *replicas <= 1 {
+		return nil
+	}
+	userConfig, err := milvusEngineConfig(c)
+	if err != nil {
+		return err
+	}
+	for _, section := range coordinatorConfigSections {
+		settings, _ := userConfig[section].(map[string]any)
+		if enabled, set := settings["enableActiveStandby"].(bool); set && !enabled {
+			return fmt.Errorf("mixCoord replicas > 1 requires active-standby; remove %s.enableActiveStandby: false from the configuration", section)
+		}
+	}
 	return nil
 }
 
@@ -276,6 +310,54 @@ func storageDependencyParam(c *controller.Context, topologyType string) *depende
 	return nil
 }
 
+// etcdDependencyParam decodes the etcd dependency parameter for the topology,
+// returning nil when unset.
+func etcdDependencyParam(c *controller.Context, topologyType string) *dependencies.Etcd {
+	if topologyType == "cluster" {
+		return clusterDependencyParams(c).Etcd
+	}
+	var params standalone.StandaloneTopologyParameters
+	if c.TryDecodeTopologyParameters(&params) && params.Dependencies != nil {
+		return params.Dependencies.Etcd
+	}
+	return nil
+}
+
+// validateRootPathsUnchanged rejects moving an existing instance's metadata or
+// object prefix: Milvus would start empty and orphan what it wrote before.
+func validateRootPathsUnchanged(c *controller.Context) error {
+	existing := &milvusapi.Milvus{}
+	if err := c.Get(existing, c.Name()); err != nil || existing.Spec.Mode == "" {
+		return nil
+	}
+	desired, err := BuildMilvusSpec(c)
+	if err != nil {
+		return err
+	}
+	for _, prefix := range []struct{ section, defaultValue string }{
+		{section: "etcd", defaultValue: c.Name()},
+		{section: "minio", defaultValue: defaultMinioRootPath},
+	} {
+		current := rootPathOrDefault(existing.Spec.Conf, prefix.section, prefix.defaultValue)
+		requested := rootPathOrDefault(desired.Conf, prefix.section, prefix.defaultValue)
+		if current != requested {
+			return fmt.Errorf("%s rootPath cannot be changed from %q to %q", prefix.section, current, requested)
+		}
+	}
+	return nil
+}
+
+// defaultMinioRootPath is the operator's object prefix when none is set.
+const defaultMinioRootPath = "files"
+
+func rootPathOrDefault(config milvusapi.Values, section, defaultValue string) string {
+	settings, _ := config[section].(map[string]any)
+	if rootPath, _ := settings["rootPath"].(string); rootPath != "" {
+		return rootPath
+	}
+	return defaultValue
+}
+
 // currentStorageSize extracts the persistence size applied to an existing
 // Milvus CR, mirroring the layout written by buildStorage.
 func currentStorageSize(m *milvusapi.Milvus) string {
@@ -305,10 +387,17 @@ func validateDependencies(c *controller.Context, topologyType string) error {
 		if err := decodeTopologyParametersIfPresent(c, &params); err != nil {
 			return err
 		}
+		requestedStream := ""
 		if params.Dependencies != nil {
 			etcd = params.Dependencies.Etcd
-			pulsar = params.Dependencies.Pulsar
 			storage = params.Dependencies.Storage
+			requestedStream = params.Dependencies.MessageStreamType
+		}
+		if err := validateMessageStream(c, requestedStream); err != nil {
+			return err
+		}
+		if params.Dependencies != nil && messageStreamType(c, requestedStream) == dependencies.MessageStreamPulsar {
+			pulsar = params.Dependencies.Pulsar
 		}
 	} else {
 		var params standalone.StandaloneTopologyParameters
@@ -328,6 +417,23 @@ func validateDependencies(c *controller.Context, topologyType string) error {
 		return err
 	}
 	return validateStorageDependency(storage)
+}
+
+// validateMessageStream accepts the supported write-ahead logs and rejects
+// switching an existing instance, which would lose its WAL.
+func validateMessageStream(c *controller.Context, requested string) error {
+	switch requested {
+	case "", dependencies.MessageStreamWoodpecker, dependencies.MessageStreamPulsar:
+	default:
+		return fmt.Errorf("messageStreamType must be %s or %s", dependencies.MessageStreamWoodpecker, dependencies.MessageStreamPulsar)
+	}
+	if requested == "" {
+		return nil
+	}
+	if existing := existingMessageStreamType(c); existing != "" && existing != requested {
+		return fmt.Errorf("message stream cannot be changed from %s to %s; set messageStreamType to %s", existing, requested, existing)
+	}
+	return nil
 }
 
 // decodeTopologyParametersIfPresent decodes the instance's topology parameters
@@ -427,8 +533,8 @@ func validateStorageDependency(storage *dependencies.Storage) error {
 		if storage.Endpoint == "" {
 			return fmt.Errorf("storage.endpoint is required when storage.external is true")
 		}
-		if storage.CredentialsSecret == "" {
-			return fmt.Errorf("storage.credentialsSecret is required when storage.external is true")
+		if storage.CredentialsSecret == "" && !storage.UseIAM {
+			return fmt.Errorf("storage.credentialsSecret is required when storage.external is true, unless storage.useIAM is set")
 		}
 		switch storage.Type {
 		case "", "MinIO", "S3", "Azure":

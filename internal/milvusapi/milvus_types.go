@@ -19,6 +19,9 @@ const (
 	MilvusModeStandalone MilvusMode = "standalone"
 )
 
+// ImageUpdateModeAll updates every component's image at once.
+const ImageUpdateModeAll = "all"
+
 // MilvusHealthStatus describes the observed health of the Milvus control plane.
 type MilvusHealthStatus string
 
@@ -42,12 +45,20 @@ type ComponentSpec struct {
 	Affinity                  *corev1.Affinity                  `json:"affinity,omitempty"`
 	Tolerations               []corev1.Toleration               `json:"tolerations,omitempty"`
 	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+	PodAnnotations            map[string]string                 `json:"podAnnotations,omitempty"`
+	Env                       []corev1.EnvVar                   `json:"env,omitempty"`
+	Volumes                   []Values                          `json:"volumes,omitempty"`
+	VolumeMounts              []corev1.VolumeMount              `json:"volumeMounts,omitempty"`
+	// SecurityContext applies to the Milvus container, not the pod.
+	SecurityContext    Values `json:"securityContext,omitempty"`
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
 // Component is a generic Milvus component with replicas and image metadata.
 type Component struct {
-	ComponentSpec `json:",inline"`
-	Replicas      *int32 `json:"replicas,omitempty"`
+	ComponentSpec  `json:",inline"`
+	Replicas       *int32   `json:"replicas,omitempty"`
+	InitContainers []Values `json:"initContainers,omitempty"`
 }
 
 // ServiceComponent adds a port number to a component.
@@ -69,6 +80,19 @@ type MilvusStandalone struct {
 // MilvusProxy defines the proxy component in cluster mode.
 type MilvusProxy struct {
 	ServiceComponent `json:",inline"`
+	Groups           []DeploymentGroup `json:"groups,omitempty"`
+}
+
+// DeploymentGroup is one independently deployed workload of a component; it
+// inherits the component spec and overrides only the fields it sets.
+type DeploymentGroup struct {
+	Name         string               `json:"name"`
+	Replicas     *int32               `json:"replicas"`
+	Annotations  map[string]string    `json:"annotations,omitempty"`
+	ExtraEnv     []corev1.EnvVar      `json:"extraEnv,omitempty"`
+	NodeSelector *map[string]string   `json:"nodeSelector,omitempty"`
+	Affinity     *corev1.Affinity     `json:"affinity,omitempty"`
+	Tolerations  *[]corev1.Toleration `json:"tolerations,omitempty"`
 }
 
 // MilvusMixCoord is the unified coordinator. Milvus 2.6 merges the former
@@ -80,22 +104,28 @@ type MilvusMixCoord struct {
 // MilvusDataNode defines the data node component.
 type MilvusDataNode struct {
 	Component `json:",inline"`
+	Groups    []DeploymentGroup `json:"groups,omitempty"`
 }
 
 // MilvusQueryNode defines the query node component.
 type MilvusQueryNode struct {
 	Component `json:",inline"`
+	Groups    []DeploymentGroup `json:"groups,omitempty"`
 }
 
 // MilvusStreamingNode defines the streaming node component introduced by the
 // Milvus 2.6 streaming architecture.
 type MilvusStreamingNode struct {
 	Component `json:",inline"`
+	Groups    []DeploymentGroup `json:"groups,omitempty"`
 }
 
 // MilvusComponents contains the concrete Milvus deployment components.
 type MilvusComponents struct {
-	ComponentSpec    `json:",inline"`
+	ComponentSpec `json:",inline"`
+	// ImageUpdateMode "all" updates every component's image at once instead of
+	// the default dependency-ordered rolling upgrade.
+	ImageUpdateMode  string               `json:"imageUpdateMode,omitempty"`
 	Standalone       *MilvusStandalone    `json:"standalone,omitempty"`
 	Proxy            *MilvusProxy         `json:"proxy,omitempty"`
 	MixCoord         *MilvusMixCoord      `json:"mixCoord,omitempty"`

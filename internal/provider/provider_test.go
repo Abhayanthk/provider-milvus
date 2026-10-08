@@ -206,6 +206,130 @@ func TestBuildMilvusSpecClusterComponents(t *testing.T) {
 	assert.Equal(t, ptr.To(int32(5)), spec.Com.DataNode.Replicas)
 }
 
+func gpuProviderSpec() corev1alpha1.ProviderSpec {
+	components := map[string]corev1alpha1.Component{}
+	bundle := map[string]string{}
+	for _, name := range []string{common.ComponentStandalone, common.ComponentProxy, common.ComponentMixCoord, common.ComponentDataNode, common.ComponentQueryNode, common.ComponentStreaming} {
+		components[name] = corev1alpha1.Component{Type: "milvus"}
+		bundle[name] = "2.6.15-gpu"
+	}
+	return corev1alpha1.ProviderSpec{
+		Components: components,
+		ComponentTypes: map[string]corev1alpha1.ComponentType{"milvus": {Versions: []corev1alpha1.ComponentVersion{
+			{Version: "2.6.15", Image: "milvusdb/milvus:v2.6.15"},
+			{Version: "2.6.15-gpu", Image: "milvusdb/milvus:v2.6.15-gpu"},
+		}}},
+		Versions: []corev1alpha1.VersionBundle{{Name: "2.6.15-gpu", Components: bundle}},
+	}
+}
+
+func newTestContextWithProviderSpec(t *testing.T, providerSpec corev1alpha1.ProviderSpec, spec corev1alpha1.InstanceSpec) *controller.Context {
+	t.Helper()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1alpha1.AddToScheme(scheme))
+	require.NoError(t, milvusapi.AddToScheme(scheme))
+	instance := &corev1alpha1.Instance{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-milvus", Namespace: "db"},
+		Spec:       spec,
+	}
+	provider := &corev1alpha1.Provider{
+		ObjectMeta: metav1.ObjectMeta{Name: common.ProviderName},
+		Spec:       providerSpec,
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(instance, provider).Build()
+	return controller.NewContext(context.Background(), fakeClient, instance, common.ProviderName)
+}
+
+func TestBuildMilvusSpecComponentImages(t *testing.T) {
+	t.Run("bundle keeps one image and the ordered rolling upgrade", func(t *testing.T) {
+		c := newTestContextWithProviderSpec(t, gpuProviderSpec(), corev1alpha1.InstanceSpec{
+			Version:  "2.6.15-gpu",
+			Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+		})
+		spec, err := BuildMilvusSpec(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, "milvusdb/milvus:v2.6.15-gpu", spec.Com.Image)
+		assert.Equal(t, "milvusdb/milvus:v2.6.15-gpu", spec.Com.QueryNode.Image)
+		assert.Equal(t, "milvusdb/milvus:v2.6.15-gpu", spec.Com.Proxy.Image)
+		// The operator parses the version as semver, so the build suffix is dropped.
+		assert.Equal(t, "2.6.15", spec.Com.QueryNode.Version)
+		assert.Equal(t, "2.6.15", spec.Com.Version)
+		assert.Empty(t, spec.Com.ImageUpdateMode)
+	})
+
+	// Live clusters showed the ordered upgrade deadlocking on mixed images.
+	t.Run("image override updates all images at once", func(t *testing.T) {
+		c := newTestContextWithProviderSpec(t, gpuProviderSpec(), corev1alpha1.InstanceSpec{
+			Version:  "2.6.15-gpu",
+			Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+			Components: map[string]corev1alpha1.ComponentSpec{
+				common.ComponentStreaming: {Image: "registry.local/milvus:v2.6.15-gpu"},
+			},
+		})
+		spec, err := BuildMilvusSpec(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, "registry.local/milvus:v2.6.15-gpu", spec.Com.StreamingNode.Image)
+		assert.Equal(t, milvusapi.ImageUpdateModeAll, spec.Com.ImageUpdateMode)
+	})
+}
+
+func TestBuildMilvusSpecActiveStandby(t *testing.T) {
+	t.Run("cluster enables active-standby on every coordinator", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{
+			Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+			Components: map[string]corev1alpha1.ComponentSpec{
+				common.ComponentMixCoord: {
+					Replicas:   ptr.To(int32(2)),
+					Parameters: configParams(t, "rootCoord:\n  dmlChannelNum: 32\n"),
+				},
+			},
+		})
+		spec, err := BuildMilvusSpec(c)
+		require.NoError(t, err)
+		for _, section := range coordinatorConfigSections {
+			assert.Equal(t, true, spec.Conf[section].(map[string]any)["enableActiveStandby"], section)
+		}
+		assert.Equal(t, float64(32), spec.Conf["rootCoord"].(map[string]any)["dmlChannelNum"])
+	})
+
+	t.Run("standalone is left to the operator", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{Topology: &corev1alpha1.TopologySpec{Type: "standalone"}})
+		spec, err := BuildMilvusSpec(c)
+		require.NoError(t, err)
+		assert.Nil(t, spec.Conf)
+	})
+}
+
+func TestValidateMixCoordStandby(t *testing.T) {
+	disabled := configParams(t, "queryCoord:\n  enableActiveStandby: false\n")
+	tests := map[string]struct {
+		replicas int32
+		wantErr  string
+	}{
+		"single replica may disable active-standby": {replicas: 1},
+		"several replicas need active-standby":      {replicas: 2, wantErr: "queryCoord.enableActiveStandby"},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			c := newTestContext(t, corev1alpha1.InstanceSpec{
+				Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+				Components: map[string]corev1alpha1.ComponentSpec{
+					common.ComponentMixCoord: {Replicas: ptr.To(tt.replicas), Parameters: disabled},
+				},
+			})
+			err := validateInstance(c)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
 func TestNotReadyMessage(t *testing.T) {
 	cr := &milvusapi.Milvus{Status: milvusapi.MilvusStatus{Conditions: []milvusapi.MilvusCondition{
 		{Type: "MilvusReady", Status: corev1.ConditionFalse, Message: "[standalone] not ready"},

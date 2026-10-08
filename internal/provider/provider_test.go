@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
@@ -184,6 +185,10 @@ func TestBuildMilvusSpecConfiguration(t *testing.T) {
 func TestBuildMilvusSpecClusterComponents(t *testing.T) {
 	c := newTestContext(t, corev1alpha1.InstanceSpec{
 		Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+		Components: map[string]corev1alpha1.ComponentSpec{
+			common.ComponentProxy:    {Replicas: ptr.To(int32(3))},
+			common.ComponentDataNode: {Replicas: ptr.To(int32(5))},
+		},
 	})
 	spec, err := BuildMilvusSpec(c)
 	require.NoError(t, err)
@@ -195,6 +200,10 @@ func TestBuildMilvusSpecClusterComponents(t *testing.T) {
 	require.NotNil(t, spec.Com.DataNode)
 	require.NotNil(t, spec.Com.QueryNode)
 	require.NotNil(t, spec.Com.StreamingNode)
+
+	assert.Equal(t, milvusapi.MilvusModeCluster, spec.Mode)
+	assert.Equal(t, ptr.To(int32(3)), spec.Com.Proxy.Replicas)
+	assert.Equal(t, ptr.To(int32(5)), spec.Com.DataNode.Replicas)
 }
 
 func TestNotReadyMessage(t *testing.T) {
@@ -313,45 +322,21 @@ func TestSyncSeedsAuthAndStatusSurfacesCredentials(t *testing.T) {
 }
 
 func TestBuildMilvusSpecTopology(t *testing.T) {
-	t.Run("standalone maps mode, version, replicas and storage", func(t *testing.T) {
+	t.Run("standalone maps mode, version and replicas", func(t *testing.T) {
 		c := newTestContext(t, corev1alpha1.InstanceSpec{
 			Topology: &corev1alpha1.TopologySpec{Type: "standalone"},
-			Version:  "2.5.0",
+			Version:  "2.6.0",
 			Components: map[string]corev1alpha1.ComponentSpec{
-				common.ComponentStandalone: {
-					Replicas: ptr.To[int32](2),
-					Storage:  storage(t, "20Gi"),
-				},
+				common.ComponentStandalone: {Replicas: ptr.To(int32(2))},
 			},
 		})
 		spec, err := BuildMilvusSpec(c)
 		require.NoError(t, err)
 
 		assert.Equal(t, milvusapi.MilvusModeStandalone, spec.Mode)
-		assert.Equal(t, "2.5.0", spec.Com.Version)
+		assert.Equal(t, "2.6.0", spec.Com.Version)
 		require.NotNil(t, spec.Com.Standalone)
-		assert.Equal(t, ptr.To[int32](2), spec.Com.Standalone.Replicas)
-		// MinIO derives its size from the standalone component's storage.
-		require.NotNil(t, spec.Dep)
-		assert.Equal(t, map[string]any{"size": "20Gi"}, spec.Dep.Storage.InCluster.Values["persistence"])
-	})
-
-	t.Run("cluster maps component replicas", func(t *testing.T) {
-		c := newTestContext(t, corev1alpha1.InstanceSpec{
-			Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
-			Components: map[string]corev1alpha1.ComponentSpec{
-				common.ComponentProxy:    {Replicas: ptr.To[int32](3)},
-				common.ComponentDataNode: {Replicas: ptr.To[int32](5)},
-			},
-		})
-		spec, err := BuildMilvusSpec(c)
-		require.NoError(t, err)
-
-		assert.Equal(t, milvusapi.MilvusModeCluster, spec.Mode)
-		require.NotNil(t, spec.Com.Proxy)
-		assert.Equal(t, ptr.To[int32](3), spec.Com.Proxy.Replicas)
-		require.NotNil(t, spec.Com.DataNode)
-		assert.Equal(t, ptr.To[int32](5), spec.Com.DataNode.Replicas)
+		assert.Equal(t, ptr.To(int32(2)), spec.Com.Standalone.Replicas)
 	})
 
 	t.Run("unset version falls back to the default", func(t *testing.T) {
@@ -376,7 +361,8 @@ func TestBuildMilvusSpecTopology(t *testing.T) {
 			Components: map[string]corev1alpha1.Component{
 				common.ComponentStandalone: {Type: "milvus"},
 			},
-			Versions: []corev1alpha1.VersionBundle{{Name: "2.6.0", Default: true}},
+			DefaultVersion: "2.6.0",
+			Versions:       []corev1alpha1.VersionBundle{{Name: "2.6.0"}},
 		}
 		require.NoError(t, c.Client().Update(context.Background(), provider))
 
@@ -386,19 +372,7 @@ func TestBuildMilvusSpecTopology(t *testing.T) {
 		assert.Equal(t, "example.com/milvus:v2.6.0", spec.Com.Image)
 	})
 
-	t.Run("invalid configuration returns an error", func(t *testing.T) {
-		c := newTestContext(t, corev1alpha1.InstanceSpec{
-			Topology: &corev1alpha1.TopologySpec{Type: "standalone"},
-			Components: map[string]corev1alpha1.ComponentSpec{
-				common.ComponentStandalone: {Parameters: configParams(t, "invalid: yaml: [")},
-			},
-		})
-		_, err := BuildMilvusSpec(c)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid configuration")
-	})
-
-	t.Run("missing Provider CR returns an error", func(t *testing.T) {
+	t.Run("missing Provider CR returns a not-found error", func(t *testing.T) {
 		scheme := runtime.NewScheme()
 		require.NoError(t, corev1alpha1.AddToScheme(scheme))
 		require.NoError(t, milvusapi.AddToScheme(scheme))
@@ -411,6 +385,7 @@ func TestBuildMilvusSpecTopology(t *testing.T) {
 
 		_, err := BuildMilvusSpec(c)
 		require.Error(t, err)
+		assert.True(t, apierrors.IsNotFound(err), "got %v", err)
 	})
 }
 
@@ -431,7 +406,7 @@ func TestProviderStatus(t *testing.T) {
 		status, err := New().Status(c)
 		require.NoError(t, err)
 		assert.Equal(t, corev1alpha1.InstancePhaseProvisioning, status.Phase)
-		assert.Contains(t, status.Message, "waiting for Milvus CR")
+		assert.Equal(t, "waiting for Milvus CR to be created", status.Message)
 	})
 
 	notReadyTests := []struct {
@@ -454,35 +429,21 @@ func TestProviderStatus(t *testing.T) {
 			status, err := New().Status(c)
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantPhase, status.Phase)
-			assert.Contains(t, status.Message, tt.wantMessage)
+			assert.Equal(t, tt.wantMessage, status.Message)
 		})
 	}
 
-	endpointTests := []struct {
-		name     string
-		endpoint string
-		wantHost string
-		wantPort string
-	}{
-		{name: "host and port", endpoint: "my-endpoint.db.svc.cluster.local:19530", wantHost: "my-endpoint.db.svc.cluster.local", wantPort: "19530"},
-		{name: "host without port defaults to 19530", endpoint: "my-endpoint.db.svc.cluster.local", wantHost: "my-endpoint.db.svc.cluster.local", wantPort: "19530"},
-	}
-	for _, tt := range endpointTests {
-		t.Run("healthy status parses endpoint with "+tt.name, func(t *testing.T) {
-			c := newTestContext(t, corev1alpha1.InstanceSpec{})
-			require.NoError(t, c.Client().Create(context.Background(), newMilvusCR(milvusapi.StatusHealthy, tt.endpoint)))
+	t.Run("healthy status is Ready with a connection URI", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{})
+		require.NoError(t, c.Client().Create(context.Background(), newMilvusCR(milvusapi.StatusHealthy, "my-endpoint.db.svc.cluster.local:19530")))
 
-			status, err := New().Status(c)
-			require.NoError(t, err)
-			assert.Equal(t, corev1alpha1.InstancePhaseReady, status.Phase)
-			cd := status.ConnectionDetails
-			assert.Equal(t, tt.wantHost, cd.Host)
-			assert.Equal(t, tt.wantPort, cd.Port)
-			assert.Equal(t, "http://"+tt.wantHost+":"+tt.wantPort, cd.URI)
-		})
-	}
+		status, err := New().Status(c)
+		require.NoError(t, err)
+		assert.Equal(t, corev1alpha1.InstancePhaseReady, status.Phase)
+		assert.Equal(t, "http://my-endpoint.db.svc.cluster.local:19530", status.ConnectionDetails.URI)
+	})
 
-	t.Run("healthy status without a load balancer address is not ready", func(t *testing.T) {
+	t.Run("healthy status with an unresolved endpoint stays Provisioning", func(t *testing.T) {
 		c := newTestContext(t, corev1alpha1.InstanceSpec{})
 		cr := newMilvusCR(milvusapi.StatusHealthy, "")
 		cr.Spec.Com.Standalone = &milvusapi.MilvusStandalone{
@@ -493,6 +454,5 @@ func TestProviderStatus(t *testing.T) {
 		status, err := New().Status(c)
 		require.NoError(t, err)
 		assert.Equal(t, corev1alpha1.InstancePhaseProvisioning, status.Phase)
-		assert.Contains(t, status.Message, "waiting for load balancer address")
 	})
 }

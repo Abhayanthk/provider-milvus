@@ -63,14 +63,22 @@ func resolveEndpoint(c *controller.Context, cr *milvusapi.Milvus) (host, port st
 	}
 }
 
+// serviceTypeFromSpec reads the exposed component's service type. It goes by
+// mode because the operator's webhook defaults spec.components.standalone
+// (ClusterIP) in cluster mode too.
 func serviceTypeFromSpec(cr *milvusapi.Milvus) corev1.ServiceType {
-	if standalone := cr.Spec.Com.Standalone; standalone != nil && standalone.ServiceType != "" {
-		return standalone.ServiceType
+	var serviceType corev1.ServiceType
+	if cr.Spec.Mode == milvusapi.MilvusModeCluster {
+		if cr.Spec.Com.Proxy != nil {
+			serviceType = cr.Spec.Com.Proxy.ServiceType
+		}
+	} else if cr.Spec.Com.Standalone != nil {
+		serviceType = cr.Spec.Com.Standalone.ServiceType
 	}
-	if proxy := cr.Spec.Com.Proxy; proxy != nil && proxy.ServiceType != "" {
-		return proxy.ServiceType
+	if serviceType == "" {
+		return corev1.ServiceTypeClusterIP
 	}
-	return corev1.ServiceTypeClusterIP
+	return serviceType
 }
 
 func splitEndpoint(endpoint string) (host, port string) {

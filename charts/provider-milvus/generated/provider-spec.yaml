@@ -110,6 +110,7 @@ spec:
                 replicas:
                   minimum: 1
                 resources: {}
+                schedulingPolicy: {}
         mixCoord:
           supportedFields:
             openAPIV3Schema:
@@ -117,6 +118,7 @@ spec:
                 replicas:
                   minimum: 1
                 resources: {}
+                schedulingPolicy: {}
         proxy:
           supportedFields:
             openAPIV3Schema:
@@ -124,6 +126,7 @@ spec:
                 replicas:
                   minimum: 1
                 resources: {}
+                schedulingPolicy: {}
                 service: {}
         queryNode:
           supportedFields:
@@ -132,6 +135,7 @@ spec:
                 replicas:
                   minimum: 1
                 resources: {}
+                schedulingPolicy: {}
         streamingNode:
           supportedFields:
             openAPIV3Schema:
@@ -139,6 +143,7 @@ spec:
                 replicas:
                   minimum: 1
                 resources: {}
+                schedulingPolicy: {}
       parametersSchema:
         openAPIV3Schema:
           properties:
@@ -335,6 +340,7 @@ spec:
                 replicas:
                   minimum: 1
                 resources: {}
+                schedulingPolicy: {}
                 service: {}
       parametersSchema:
         openAPIV3Schema:
@@ -427,8 +433,17 @@ spec:
                     gracefulTime: 5000
               path: spec.components.proxy.parameters.configuration
               uiType: text
+            podSchedulingPolicy:
+              components:
+                policy:
+                  uiType: widget
+                  widgetType: podSchedulingPolicy
+              groupType: toggleable
+              label: Pod scheduling policy
+              uiType: group
           componentsOrder:
             - configuration
+            - podSchedulingPolicy
           description: Configure advanced Milvus engine settings shared across all components.
           label: Advanced configuration
         basicInfo:
@@ -1011,8 +1026,17 @@ spec:
                     maxNameLength: 255
               path: spec.components.standalone.parameters.configuration
               uiType: text
+            podSchedulingPolicy:
+              components:
+                policy:
+                  uiType: widget
+                  widgetType: podSchedulingPolicy
+              groupType: toggleable
+              label: Pod scheduling policy
+              uiType: group
           componentsOrder:
             - configuration
+            - podSchedulingPolicy
           description: Configure advanced Milvus engine settings.
           label: Advanced configuration
         basicInfo:

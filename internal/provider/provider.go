@@ -78,12 +78,15 @@ func componentResourcesOrNil(components map[string]corev1alpha1.ComponentSpec, n
 // makeMilvusComponentSpec labels the component's pods so the runtime counts
 // them into the Instance's status.components.
 func makeMilvusComponentSpec(c *controller.Context, name, image, version string) milvusapi.ComponentSpec {
-	return milvusapi.ComponentSpec{
+	components := c.Instance().Spec.Components
+	spec := milvusapi.ComponentSpec{
 		Image:     image,
 		Version:   version,
-		Resources: componentResourcesOrNil(c.Instance().Spec.Components, name),
+		Resources: componentResourcesOrNil(components, name),
 		PodLabels: c.PodLabels(name),
 	}
+	applySchedulingPolicy(&spec, components[name].SchedulingPolicy)
+	return spec
 }
 
 // milvusEngineConfig collects the `configuration` YAML from every component's

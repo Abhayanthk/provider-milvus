@@ -1,0 +1,30 @@
+# Give the standalone component a pod scheduling policy.
+apiVersion: core.openeverest.io/v1alpha1
+kind: Instance
+metadata:
+  name: test-instance
+spec:
+  providerRef:
+    name: milvus
+  components:
+    standalone:
+      type: milvus
+      schedulingPolicy:
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 50
+                preference:
+                  matchExpressions:
+                    - key: node-role
+                      operator: In
+                      values: [db]
+        tolerations:
+          - key: dedicated
+            operator: Equal
+            value: db
+            effect: NoSchedule
+        topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: ScheduleAnyway

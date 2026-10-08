@@ -36,7 +36,12 @@ type ComponentSpec struct {
 	Version   string                       `json:"version,omitempty"`
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 	// PodLabels are added to the pod template only, never to the selector.
-	PodLabels map[string]string `json:"podLabels,omitempty"`
+	PodLabels                 map[string]string                 `json:"podLabels,omitempty"`
+	SchedulerName             string                            `json:"schedulerName,omitempty"`
+	NodeSelector              map[string]string                 `json:"nodeSelector,omitempty"`
+	Affinity                  *corev1.Affinity                  `json:"affinity,omitempty"`
+	Tolerations               []corev1.Toleration               `json:"tolerations,omitempty"`
+	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
 // Component is a generic Milvus component with replicas and image metadata.

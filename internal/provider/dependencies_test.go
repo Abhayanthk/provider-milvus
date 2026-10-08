@@ -188,6 +188,66 @@ func TestBuildDependenciesExternal(t *testing.T) {
 	assert.Equal(t, map[string]any{"bucketName": "vectors", "useSSL": true}, spec.Conf["minio"])
 }
 
+func TestBuildDependenciesExternalS3WithIAM(t *testing.T) {
+	params := cluster.ClusterTopologyParameters{
+		Dependencies: &cluster.ClusterDependencies{
+			Etcd: &dependencies.Etcd{External: true, Endpoints: []string{"etcd:2379"}, RootPath: "vectors-prod"},
+			Storage: &dependencies.Storage{
+				External: true, Endpoint: "s3.us-east-1.amazonaws.com:443", Type: "S3", Bucket: "vectors",
+				UseSSL: true, UseIAM: true, ServiceAccountName: "milvus-s3",
+				Region: "us-east-1", CloudProvider: "aws", RootPath: "prod",
+			},
+		},
+	}
+	c := newTestContext(t, corev1alpha1.InstanceSpec{
+		Topology: &corev1alpha1.TopologySpec{Type: "cluster", Parameters: topologyParams(t, params)},
+	})
+	require.NoError(t, validateInstance(c))
+	spec, err := BuildMilvusSpec(c)
+	require.NoError(t, err)
+
+	assert.Empty(t, spec.Dep.Storage.SecretRef)
+	assert.Equal(t, "milvus-s3", spec.Com.ServiceAccountName)
+	assert.Equal(t, map[string]any{
+		"bucketName": "vectors", "rootPath": "prod", "region": "us-east-1",
+		"cloudProvider": "aws", "useSSL": true, "useIAM": true,
+	}, spec.Conf["minio"])
+	assert.Equal(t, "vectors-prod", spec.Conf["etcd"].(map[string]any)["rootPath"])
+	// Live clusters showed Woodpecker logs keyed by the channel prefix under a
+	// fixed etcd prefix, outside etcd.rootPath.
+	assert.Equal(t, map[string]any{"chanNamePrefix": map[string]any{"cluster": "vectors-prod"}}, spec.Conf["msgChannel"])
+}
+
+func TestValidateRootPathsUnchanged(t *testing.T) {
+	external := func(storageRootPath string) *runtime.RawExtension {
+		return topologyParams(t, standalone.StandaloneTopologyParameters{
+			Dependencies: &standalone.StandaloneDependencies{Storage: &dependencies.Storage{
+				External: true, Endpoint: "minio:9000", CredentialsSecret: "creds", RootPath: storageRootPath,
+			}},
+		})
+	}
+	existing := &milvusapi.Milvus{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-milvus", Namespace: "db"},
+		Spec:       milvusapi.MilvusSpec{Mode: milvusapi.MilvusModeStandalone},
+	}
+
+	t.Run("default prefix kept", func(t *testing.T) {
+		c := newTestContextWithObjects(t, corev1alpha1.InstanceSpec{
+			Topology: &corev1alpha1.TopologySpec{Type: "standalone", Parameters: external("")},
+		}, existing.DeepCopyObject().(*milvusapi.Milvus))
+		require.NoError(t, validateInstance(c))
+	})
+
+	t.Run("prefix moved", func(t *testing.T) {
+		c := newTestContextWithObjects(t, corev1alpha1.InstanceSpec{
+			Topology: &corev1alpha1.TopologySpec{Type: "standalone", Parameters: external("tenant-a")},
+		}, existing.DeepCopyObject().(*milvusapi.Milvus))
+		err := validateInstance(c)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `minio rootPath cannot be changed from "files" to "tenant-a"`)
+	})
+}
+
 func TestBuildDependenciesUserOverrides(t *testing.T) {
 	params := cluster.ClusterTopologyParameters{
 		Dependencies: &cluster.ClusterDependencies{
@@ -403,6 +463,14 @@ func TestValidateDependencies(t *testing.T) {
 				})},
 			},
 			wantErr: "storage.credentialsSecret is required",
+		},
+		{
+			name: "external storage with IAM needs no credentials",
+			spec: corev1alpha1.InstanceSpec{
+				Topology: &corev1alpha1.TopologySpec{Type: "standalone", Parameters: topologyParams(t, standalone.StandaloneTopologyParameters{
+					Dependencies: &standalone.StandaloneDependencies{Storage: &dependencies.Storage{External: true, Endpoint: "s3:443", UseIAM: true}},
+				})},
+			},
 		},
 		{
 			name: "external storage with unknown type",

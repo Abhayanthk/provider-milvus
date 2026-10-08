@@ -81,6 +81,10 @@ func validateInstance(c *controller.Context) error {
 		return err
 	}
 
+	if err := validateRootPathsUnchanged(c); err != nil {
+		return err
+	}
+
 	if err := validateServiceExposure(instance.Spec.Components, topologyType); err != nil {
 		return err
 	}
@@ -306,6 +310,54 @@ func storageDependencyParam(c *controller.Context, topologyType string) *depende
 	return nil
 }
 
+// etcdDependencyParam decodes the etcd dependency parameter for the topology,
+// returning nil when unset.
+func etcdDependencyParam(c *controller.Context, topologyType string) *dependencies.Etcd {
+	if topologyType == "cluster" {
+		return clusterDependencyParams(c).Etcd
+	}
+	var params standalone.StandaloneTopologyParameters
+	if c.TryDecodeTopologyParameters(&params) && params.Dependencies != nil {
+		return params.Dependencies.Etcd
+	}
+	return nil
+}
+
+// validateRootPathsUnchanged rejects moving an existing instance's metadata or
+// object prefix: Milvus would start empty and orphan what it wrote before.
+func validateRootPathsUnchanged(c *controller.Context) error {
+	existing := &milvusapi.Milvus{}
+	if err := c.Get(existing, c.Name()); err != nil || existing.Spec.Mode == "" {
+		return nil
+	}
+	desired, err := BuildMilvusSpec(c)
+	if err != nil {
+		return err
+	}
+	for _, prefix := range []struct{ section, defaultValue string }{
+		{section: "etcd", defaultValue: c.Name()},
+		{section: "minio", defaultValue: defaultMinioRootPath},
+	} {
+		current := rootPathOrDefault(existing.Spec.Conf, prefix.section, prefix.defaultValue)
+		requested := rootPathOrDefault(desired.Conf, prefix.section, prefix.defaultValue)
+		if current != requested {
+			return fmt.Errorf("%s rootPath cannot be changed from %q to %q", prefix.section, current, requested)
+		}
+	}
+	return nil
+}
+
+// defaultMinioRootPath is the operator's object prefix when none is set.
+const defaultMinioRootPath = "files"
+
+func rootPathOrDefault(config milvusapi.Values, section, defaultValue string) string {
+	settings, _ := config[section].(map[string]any)
+	if rootPath, _ := settings["rootPath"].(string); rootPath != "" {
+		return rootPath
+	}
+	return defaultValue
+}
+
 // currentStorageSize extracts the persistence size applied to an existing
 // Milvus CR, mirroring the layout written by buildStorage.
 func currentStorageSize(m *milvusapi.Milvus) string {
@@ -481,8 +533,8 @@ func validateStorageDependency(storage *dependencies.Storage) error {
 		if storage.Endpoint == "" {
 			return fmt.Errorf("storage.endpoint is required when storage.external is true")
 		}
-		if storage.CredentialsSecret == "" {
-			return fmt.Errorf("storage.credentialsSecret is required when storage.external is true")
+		if storage.CredentialsSecret == "" && !storage.UseIAM {
+			return fmt.Errorf("storage.credentialsSecret is required when storage.external is true, unless storage.useIAM is set")
 		}
 		switch storage.Type {
 		case "", "MinIO", "S3", "Azure":

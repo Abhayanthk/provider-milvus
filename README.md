@@ -252,6 +252,35 @@ spec:
               nvidia.com/gpu.product: NVIDIA-H200
 ```
 
+### Bring your own etcd and object storage
+
+Point Milvus at existing services instead of the bundled ones. With `useIAM`
+the pods authenticate through the ServiceAccount's cloud identity (e.g. EKS
+IRSA), so no credentials Secret is needed. `rootPath` lets several instances
+share one etcd or bucket and cannot be changed after creation:
+
+```yaml
+spec:
+  topology:
+    type: cluster
+    parameters:
+      dependencies:
+        etcd:
+          external: true
+          endpoints: ["etcd-0.etcd:2379", "etcd-1.etcd:2379", "etcd-2.etcd:2379"]
+          rootPath: vectors-prod
+        storage:
+          external: true
+          type: S3
+          endpoint: s3.us-east-1.amazonaws.com:443
+          useSSL: true
+          bucket: vectors
+          region: us-east-1
+          cloudProvider: aws
+          useIAM: true
+          serviceAccountName: milvus-s3
+```
+
 ## Topologies
 
 <!-- TODO(sdk): these blocks are hand-maintained until `provider-sdk generate` fills them

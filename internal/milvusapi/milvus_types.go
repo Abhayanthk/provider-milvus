@@ -50,7 +50,8 @@ type ComponentSpec struct {
 	Volumes                   []Values                          `json:"volumes,omitempty"`
 	VolumeMounts              []corev1.VolumeMount              `json:"volumeMounts,omitempty"`
 	// SecurityContext applies to the Milvus container, not the pod.
-	SecurityContext Values `json:"securityContext,omitempty"`
+	SecurityContext    Values `json:"securityContext,omitempty"`
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
 // Component is a generic Milvus component with replicas and image metadata.

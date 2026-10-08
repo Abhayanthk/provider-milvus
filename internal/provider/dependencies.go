@@ -127,22 +127,55 @@ func existingMessageStreamType(c *controller.Context) string {
 }
 
 // externalStorageConfig is the engine config an external object store needs
-// beyond the dependency spec: its bucket and whether to use TLS.
+// beyond the dependency spec: bucket, prefix, TLS, region and credentials mode.
 func externalStorageConfig(param *dependencies.Storage) milvusapi.Values {
 	if param == nil || !param.External {
 		return nil
 	}
 	minio := map[string]any{}
-	if param.Bucket != "" {
-		minio["bucketName"] = param.Bucket
+	for key, value := range map[string]string{
+		"bucketName":    param.Bucket,
+		"rootPath":      param.RootPath,
+		"region":        param.Region,
+		"cloudProvider": param.CloudProvider,
+	} {
+		if value != "" {
+			minio[key] = value
+		}
 	}
 	if param.UseSSL {
 		minio["useSSL"] = true
+	}
+	if param.UseIAM {
+		minio["useIAM"] = true
 	}
 	if len(minio) == 0 {
 		return nil
 	}
 	return milvusapi.Values{"minio": minio}
+}
+
+// externalEtcdConfig sets the metadata prefix of an external etcd. Woodpecker
+// keys its logs by the channel prefix (the instance name by default) under a
+// fixed etcd prefix, so the channel prefix follows rootPath as well to keep
+// same-named instances from different namespaces apart.
+func externalEtcdConfig(param *dependencies.Etcd) milvusapi.Values {
+	if param == nil || !param.External || param.RootPath == "" {
+		return nil
+	}
+	return milvusapi.Values{
+		"etcd":       map[string]any{"rootPath": param.RootPath},
+		"msgChannel": map[string]any{"chanNamePrefix": map[string]any{"cluster": param.RootPath}},
+	}
+}
+
+// storageServiceAccount is the ServiceAccount carrying the cloud identity of
+// an external object store, if any.
+func storageServiceAccount(param *dependencies.Storage) string {
+	if param == nil || !param.External {
+		return ""
+	}
+	return param.ServiceAccountName
 }
 
 // bundledInCluster wraps rendered Helm values so removing the Instance (and the

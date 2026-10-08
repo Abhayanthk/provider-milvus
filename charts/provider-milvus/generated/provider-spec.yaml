@@ -2519,6 +2519,8 @@ spec:
                               type: string
                           type: object
                       type: object
+                    rootPath:
+                      type: string
                   type: object
                 messageStreamType:
                   type: string
@@ -2640,6 +2642,8 @@ spec:
                   properties:
                     bucket:
                       type: string
+                    cloudProvider:
+                      type: string
                     credentialsSecret:
                       type: string
                     endpoint:
@@ -2651,6 +2655,8 @@ spec:
                         size:
                           type: string
                       type: object
+                    region:
+                      type: string
                     replicas:
                       format: int32
                       type: integer
@@ -2671,8 +2677,14 @@ spec:
                               type: string
                           type: object
                       type: object
+                    rootPath:
+                      type: string
+                    serviceAccountName:
+                      type: string
                     type:
                       type: string
+                    useIAM:
+                      type: boolean
                     useSSL:
                       type: boolean
                   type: object
@@ -2727,10 +2739,14 @@ spec:
                               type: string
                           type: object
                       type: object
+                    rootPath:
+                      type: string
                   type: object
                 storage:
                   properties:
                     bucket:
+                      type: string
+                    cloudProvider:
                       type: string
                     credentialsSecret:
                       type: string
@@ -2743,6 +2759,8 @@ spec:
                         size:
                           type: string
                       type: object
+                    region:
+                      type: string
                     replicas:
                       format: int32
                       type: integer
@@ -2763,8 +2781,14 @@ spec:
                               type: string
                           type: object
                       type: object
+                    rootPath:
+                      type: string
+                    serviceAccountName:
+                      type: string
                     type:
                       type: string
+                    useIAM:
+                      type: boolean
                     useSSL:
                       type: boolean
                   type: object

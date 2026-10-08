@@ -72,6 +72,7 @@ provider itself is covered under [Installation](#installation).
 | Custom configuration | ✅ | Milvus engine config via component `parameters.configuration` |
 | Authentication | ✅ | A `root` credential is generated and published to the connection Secret |
 | Network exposure | ✅ | ClusterIP, NodePort or LoadBalancer via the component `service` |
+| Pod scheduling | ✅ | Per-component `schedulingPolicy` (affinity, tolerations, node selector, topology spread, scheduler); not applied to bundled dependencies |
 | Monitoring | ❌ | |
 | TLS | ❌ | |
 

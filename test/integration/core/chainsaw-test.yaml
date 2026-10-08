@@ -13,7 +13,7 @@ metadata:
 spec:
   description: |
     Lifecycle of a standalone Instance: create, authenticate, expose via
-    NodePort and LoadBalancer, and delete.
+    NodePort and LoadBalancer, set a pod scheduling policy, and delete.
 
   # Collect diagnostics when a step fails.
   catch:
@@ -61,6 +61,13 @@ spec:
             file: 21-expose-load-balancer.yaml
         - assert:
             file: 21-assert.yaml
+
+    - name: update-scheduling-policy
+      try:
+        - apply:
+            file: 30-update-scheduling-policy.yaml
+        - assert:
+            file: 30-assert.yaml
 
     # Deleting the Instance runs the provider's Cleanup and removes its
     # finalizer; the owned Milvus CR and Secrets are garbage-collected. The

@@ -12,6 +12,7 @@ config:
           replicas: {minimum: 1}
           resources: {}
           service: {}
+          schedulingPolicy: {}
 ui:
   sections:
     basicInfo:
@@ -193,8 +194,17 @@ ui:
             multiline: true
             minRows: 3
             maxRows: 8
+        podSchedulingPolicy:
+          uiType: group
+          groupType: toggleable
+          label: Pod scheduling policy
+          components:
+            policy:
+              uiType: widget
+              widgetType: podSchedulingPolicy
       componentsOrder:
         - configuration
+        - podSchedulingPolicy
   sectionsOrder:
     - basicInfo
     - resources

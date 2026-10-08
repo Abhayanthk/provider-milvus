@@ -1,15 +1,15 @@
 componentTypes:
   milvus:
+    defaultVersion: "2.6.11"
     versions:
       - version: "2.6.11"
         image: "milvusdb/milvus:v2.6.11"
-        default: true
       - version: "2.6.10"
         image: "milvusdb/milvus:v2.6.10"
 
+defaultVersion: "2.6.11"
 versions:
   - name: "2.6.11"
-    default: true
     components:
       standalone: "2.6.11"
       proxy: "2.6.11"

@@ -84,13 +84,24 @@ type Storage struct {
 	// Endpoint is the external object storage endpoint (host:port). Used only
 	// when External is true.
 	Endpoint string `json:"endpoint,omitempty"`
+	// Type is the external object storage flavour: MinIO (default), S3 or
+	// Azure. Used only when External is true.
+	Type string `json:"type,omitempty"`
+	// CredentialsSecret names a Secret in the Instance namespace holding the
+	// external storage's "accesskey" and "secretkey". Required when External.
+	CredentialsSecret string `json:"credentialsSecret,omitempty"`
+	// Bucket is the external bucket. Defaults to the Instance name. Used only
+	// when External is true.
+	Bucket string `json:"bucket,omitempty"`
+	// UseSSL connects to the external endpoint over TLS. Used only when
+	// External is true.
+	UseSSL bool `json:"useSSL,omitempty"`
 	// Replicas sets the bundled MinIO server count. A value > 1 switches MinIO
 	// to distributed mode. Ignored when External.
 	Replicas *int32 `json:"replicas,omitempty"`
 	// Resources sizes the bundled MinIO pods. Ignored when External.
 	Resources *Resources `json:"resources,omitempty"`
-	// Persistence sizes the MinIO data PVC. When unset it derives from the
-	// data-bearing Milvus component's storage size. Ignored when External.
+	// Persistence sizes the MinIO data PVC. Ignored when External.
 	Persistence *Persistence `json:"persistence,omitempty"`
 }
 

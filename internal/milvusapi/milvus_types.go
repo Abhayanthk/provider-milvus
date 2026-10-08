@@ -35,6 +35,13 @@ type ComponentSpec struct {
 	Image     string                       `json:"image,omitempty"`
 	Version   string                       `json:"version,omitempty"`
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+	// PodLabels are added to the pod template only, never to the selector.
+	PodLabels                 map[string]string                 `json:"podLabels,omitempty"`
+	SchedulerName             string                            `json:"schedulerName,omitempty"`
+	NodeSelector              map[string]string                 `json:"nodeSelector,omitempty"`
+	Affinity                  *corev1.Affinity                  `json:"affinity,omitempty"`
+	Tolerations               []corev1.Toleration               `json:"tolerations,omitempty"`
+	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
 // Component is a generic Milvus component with replicas and image metadata.
@@ -147,8 +154,17 @@ type MilvusDependencies struct {
 
 // MilvusStatus is the observed state of a Milvus deployment.
 type MilvusStatus struct {
-	Status   MilvusHealthStatus `json:"status,omitempty"`
-	Endpoint string             `json:"endpoint,omitempty"`
+	Status     MilvusHealthStatus `json:"status,omitempty"`
+	Endpoint   string             `json:"endpoint,omitempty"`
+	Conditions []MilvusCondition  `json:"conditions,omitempty"`
+}
+
+// MilvusCondition is one readiness condition the operator reports.
+type MilvusCondition struct {
+	Type    string                 `json:"type"`
+	Status  corev1.ConditionStatus `json:"status"`
+	Reason  string                 `json:"reason,omitempty"`
+	Message string                 `json:"message,omitempty"`
 }
 
 // Milvus is a minimal CRD model used by the provider to render the Milvus control-plane resource.

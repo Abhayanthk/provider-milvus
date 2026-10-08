@@ -75,12 +75,18 @@ func componentResourcesOrNil(components map[string]corev1alpha1.ComponentSpec, n
 	}
 }
 
-func makeMilvusComponentSpec(components map[string]corev1alpha1.ComponentSpec, name, image, version string) milvusapi.ComponentSpec {
-	return milvusapi.ComponentSpec{
+// makeMilvusComponentSpec labels the component's pods so the runtime counts
+// them into the Instance's status.components.
+func makeMilvusComponentSpec(c *controller.Context, name, image, version string) milvusapi.ComponentSpec {
+	components := c.Instance().Spec.Components
+	spec := milvusapi.ComponentSpec{
 		Image:     image,
 		Version:   version,
 		Resources: componentResourcesOrNil(components, name),
+		PodLabels: c.PodLabels(name),
 	}
+	applySchedulingPolicy(&spec, components[name].SchedulingPolicy)
+	return spec
 }
 
 // milvusEngineConfig collects the `configuration` YAML from every component's
@@ -187,12 +193,18 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 		return milvusapi.MilvusSpec{}, err
 	}
 	spec.Conf = engineConfig
+	if storageConfig := externalStorageConfig(storageDependencyParam(c, topologyType)); storageConfig != nil {
+		if spec.Conf == nil {
+			spec.Conf = milvusapi.Values{}
+		}
+		deepMergeValues(spec.Conf, storageConfig)
+	}
 
 	if topologyType == "standalone" {
 		spec.Com.Standalone = &milvusapi.MilvusStandalone{
 			ServiceComponent: milvusapi.ServiceComponent{
 				Component: milvusapi.Component{
-					ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, common.ComponentStandalone, baseImage, resolvedVersion),
+					ComponentSpec: makeMilvusComponentSpec(c, common.ComponentStandalone, baseImage, resolvedVersion),
 					Replicas:      componentReplicasOrDefault(instance.Spec.Components, common.ComponentStandalone, 1),
 				},
 				Port: 19530,
@@ -206,7 +218,7 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 	spec.Com.Proxy = &milvusapi.MilvusProxy{
 		ServiceComponent: milvusapi.ServiceComponent{
 			Component: milvusapi.Component{
-				ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, common.ComponentProxy, baseImage, resolvedVersion),
+				ComponentSpec: makeMilvusComponentSpec(c, common.ComponentProxy, baseImage, resolvedVersion),
 				Replicas:      componentReplicasOrDefault(instance.Spec.Components, common.ComponentProxy, 1),
 			},
 			Port: 19530,
@@ -215,13 +227,13 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 	applyServiceExposure(&spec.Com.Proxy.ServiceComponent, instance.Spec.Components[common.ComponentProxy].Service)
 
 	spec.Com.MixCoord = &milvusapi.MilvusMixCoord{Component: milvusapi.Component{
-		ComponentSpec: makeMilvusComponentSpec(instance.Spec.Components, common.ComponentMixCoord, baseImage, resolvedVersion),
+		ComponentSpec: makeMilvusComponentSpec(c, common.ComponentMixCoord, baseImage, resolvedVersion),
 		Replicas:      componentReplicasOrDefault(instance.Spec.Components, common.ComponentMixCoord, 1),
 	}}
 
 	for _, name := range []string{common.ComponentDataNode, common.ComponentQueryNode, common.ComponentStreaming} {
 		replicas := componentReplicasOrDefault(instance.Spec.Components, name, 1)
-		componentSpec := makeMilvusComponentSpec(instance.Spec.Components, name, baseImage, resolvedVersion)
+		componentSpec := makeMilvusComponentSpec(c, name, baseImage, resolvedVersion)
 		switch name {
 		case common.ComponentDataNode:
 			spec.Com.DataNode = &milvusapi.MilvusDataNode{Component: milvusapi.Component{ComponentSpec: componentSpec, Replicas: replicas}}
@@ -302,14 +314,36 @@ func (p *Provider) Status(c *controller.Context) (controller.Status, error) {
 			},
 		}), nil
 	case milvusapi.StatusPending, milvusapi.StatusDeleting:
-		return controller.Provisioning("Milvus is being initialized or updated"), nil
+		return controller.Provisioning(notReadyMessage(cr, "Milvus is being initialized or updated")), nil
 	case milvusapi.StatusStopped:
 		return controller.Pending("Milvus is stopped"), nil
 	case milvusapi.StatusUnhealthy:
-		return controller.Provisioning("Milvus is unhealthy"), nil
+		return controller.Provisioning(notReadyMessage(cr, "Milvus is unhealthy")), nil
 	default:
 		return controller.Provisioning("Milvus is initializing"), nil
 	}
+}
+
+// notReadyConditions are checked in dependency order, so the root cause wins
+// over the Milvus components waiting on it.
+var notReadyConditions = []string{"EtcdReady", "StorageReady", "MsgStreamReady", "MilvusReady"}
+
+// notReadyMessage names the first failing operator condition, or returns
+// fallback when none is reported.
+func notReadyMessage(cr *milvusapi.Milvus, fallback string) string {
+	for _, conditionType := range notReadyConditions {
+		for _, condition := range cr.Status.Conditions {
+			if condition.Type != conditionType || condition.Status != corev1.ConditionFalse {
+				continue
+			}
+			detail := condition.Message
+			if detail == "" {
+				detail = condition.Reason
+			}
+			return fmt.Sprintf("%s: %s: %s", fallback, conditionType, detail)
+		}
+	}
+	return fallback
 }
 
 // Cleanup handles deletion of provider-managed resources.

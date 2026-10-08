@@ -20,6 +20,10 @@ spec:
   components:
     standalone:
       replicas: 1
+      podLabels:
+        core.openeverest.io/component: standalone
+        core.openeverest.io/instance: test-instance
+        core.openeverest.io/provider: milvus
       resources:
         limits:
           cpu: "1"

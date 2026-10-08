@@ -61,6 +61,10 @@ func validateInstance(c *controller.Context) error {
 		return fmt.Errorf("unsupported topology %q; expected standalone or cluster", requested)
 	}
 
+	if err := validateTopologyUnchanged(c, topologyType); err != nil {
+		return err
+	}
+
 	if err := validateComponentsForTopology(instance.Spec.Components, topologyType); err != nil {
 		return err
 	}
@@ -85,6 +89,19 @@ func validateInstance(c *controller.Context) error {
 		return err
 	}
 
+	return nil
+}
+
+// validateTopologyUnchanged rejects switching an existing instance between
+// standalone and cluster: the operator cannot migrate a running deployment.
+func validateTopologyUnchanged(c *controller.Context, topologyType string) error {
+	existing := &milvusapi.Milvus{}
+	if err := c.Get(existing, c.Name()); err != nil || existing.Spec.Mode == "" {
+		return nil
+	}
+	if current := string(existing.Spec.Mode); current != topologyType {
+		return fmt.Errorf("topology cannot be changed from %s to %s", current, topologyType)
+	}
 	return nil
 }
 
@@ -410,7 +427,15 @@ func validateStorageDependency(storage *dependencies.Storage) error {
 		if storage.Endpoint == "" {
 			return fmt.Errorf("storage.endpoint is required when storage.external is true")
 		}
-		return nil
+		if storage.CredentialsSecret == "" {
+			return fmt.Errorf("storage.credentialsSecret is required when storage.external is true")
+		}
+		switch storage.Type {
+		case "", "MinIO", "S3", "Azure":
+			return nil
+		default:
+			return fmt.Errorf("storage.type must be one of MinIO, S3 or Azure")
+		}
 	}
 	if err := validateDependencyReplicas("storage", storage.Replicas); err != nil {
 		return err

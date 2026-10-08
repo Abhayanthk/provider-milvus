@@ -1,0 +1,32 @@
+# The provider copies the policy onto the Milvus component and points the
+# selector-less spread constraint at the component's own pods.
+apiVersion: milvus.io/v1beta1
+kind: Milvus
+metadata:
+  name: test-instance
+spec:
+  components:
+    standalone:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: node-role
+                    operator: In
+                    values: [db]
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: db
+          effect: NoSchedule
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              core.openeverest.io/component: standalone
+              core.openeverest.io/instance: test-instance
+              core.openeverest.io/provider: milvus

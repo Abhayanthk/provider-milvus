@@ -197,6 +197,64 @@ func TestBuildMilvusSpecClusterComponents(t *testing.T) {
 	require.NotNil(t, spec.Com.StreamingNode)
 }
 
+func TestNotReadyMessage(t *testing.T) {
+	cr := &milvusapi.Milvus{Status: milvusapi.MilvusStatus{Conditions: []milvusapi.MilvusCondition{
+		{Type: "MilvusReady", Status: corev1.ConditionFalse, Message: "[standalone] not ready"},
+		{Type: "StorageReady", Status: corev1.ConditionFalse, Reason: "SecretNotExist", Message: "Secret not exist"},
+		{Type: "EtcdReady", Status: corev1.ConditionTrue},
+	}}}
+	assert.Equal(t, "waiting: StorageReady: Secret not exist", notReadyMessage(cr, "waiting"),
+		"a failing dependency is reported before the components waiting on it")
+
+	cr.Status.Conditions[1].Message = ""
+	assert.Equal(t, "waiting: StorageReady: SecretNotExist", notReadyMessage(cr, "waiting"))
+
+	assert.Equal(t, "waiting", notReadyMessage(&milvusapi.Milvus{}, "waiting"))
+}
+
+func TestBuildMilvusSpecLabelsComponentPods(t *testing.T) {
+	podLabels := func(component string) map[string]string {
+		return map[string]string{
+			controller.ProviderLabel:  common.ProviderName,
+			controller.InstanceLabel:  "test-milvus",
+			controller.ComponentLabel: component,
+		}
+	}
+
+	t.Run("standalone", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{
+			Topology: &corev1alpha1.TopologySpec{Type: "standalone"},
+		})
+		spec, err := BuildMilvusSpec(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, podLabels(common.ComponentStandalone), spec.Com.Standalone.PodLabels)
+		assert.Equal(t, []string{common.ComponentStandalone}, c.LabelledComponents())
+	})
+
+	t.Run("cluster labels every component, including ones absent from the Instance", func(t *testing.T) {
+		c := newTestContext(t, corev1alpha1.InstanceSpec{
+			Topology: &corev1alpha1.TopologySpec{Type: "cluster"},
+			Components: map[string]corev1alpha1.ComponentSpec{
+				common.ComponentProxy: {},
+			},
+		})
+		spec, err := BuildMilvusSpec(c)
+		require.NoError(t, err)
+
+		assert.Equal(t, podLabels(common.ComponentProxy), spec.Com.Proxy.PodLabels)
+		assert.Equal(t, podLabels(common.ComponentMixCoord), spec.Com.MixCoord.PodLabels)
+		assert.Equal(t, podLabels(common.ComponentDataNode), spec.Com.DataNode.PodLabels)
+		assert.Equal(t, podLabels(common.ComponentQueryNode), spec.Com.QueryNode.PodLabels)
+		assert.Equal(t, podLabels(common.ComponentStreaming), spec.Com.StreamingNode.PodLabels)
+		assert.Nil(t, spec.Com.PodLabels, "global podLabels would be merged into every component")
+		assert.ElementsMatch(t, []string{
+			common.ComponentProxy, common.ComponentMixCoord, common.ComponentDataNode,
+			common.ComponentQueryNode, common.ComponentStreaming,
+		}, c.LabelledComponents())
+	})
+}
+
 func TestBuildMilvusSpecComponentResources(t *testing.T) {
 	c := newTestContext(t, corev1alpha1.InstanceSpec{
 		Topology: &corev1alpha1.TopologySpec{Type: "cluster"},

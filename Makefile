@@ -31,7 +31,7 @@ YQ_VERSION ?= v4.44.6
 YQ ?= $(LOCALBIN)/yq-$(YQ_VERSION)
 
 # golangci-lint version
-GOLANGCI_LINT_VERSION ?= v2.11.3
+GOLANGCI_LINT_VERSION ?= v2.14.0
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 
 # Helm chart directory
@@ -146,6 +146,12 @@ test-integration: ## Run all integration tests against the current cluster.
 .PHONY: test-integration-core
 test-integration-core: ## Run core integration tests.
 	. ./test/vars.sh && chainsaw test --config ./test/integration/.chainsaw.yaml ./test/integration/core
+
+# Live e2e needs a real cluster with OpenEverest, this provider and the Milvus
+# operator running (integration tests scale the operator to 0).
+.PHONY: test-e2e-live
+test-e2e-live: ## Create, smoke-test, upgrade and delete real Milvus instances on the current cluster.
+	./test/e2e/run-matrix.sh $(E2E_NAMESPACE)
 
 .PHONY: load-image
 load-image: ## Import the provider image (IMG) into the k3d cluster.

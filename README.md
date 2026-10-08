@@ -217,11 +217,19 @@ spec:
 <!-- BEGIN GENERATED: versions -->
 | Version bundle | Default |  |
 |---|---|---|
+| `2.6.15` | | |
+| `2.6.15-gpu` | | GPU build of every component |
 | `2.6.11` | ✅ | |
 | `2.6.10` | | |
 <!-- END GENERATED: versions -->
 
 Source of truth: [definition/versions.yaml](definition/versions.yaml).
+
+GPU bundles only switch images; request GPUs per component with
+`resources.limits["nvidia.com/gpu"]` and place the pods with `schedulingPolicy`.
+`spec.components.<name>.image` overrides a single component's image (e.g. a
+registry mirror); components on different images are updated all at once
+instead of in the operator's dependency order.
 
 <!-- TODO(provider): document the supported upgrade paths (minor only? operator first?). -->
 

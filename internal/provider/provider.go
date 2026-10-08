@@ -77,16 +77,57 @@ func componentResourcesOrNil(components map[string]corev1alpha1.ComponentSpec, n
 
 // makeMilvusComponentSpec labels the component's pods so the runtime counts
 // them into the Instance's status.components.
-func makeMilvusComponentSpec(c *controller.Context, name, image, version string) milvusapi.ComponentSpec {
+func makeMilvusComponentSpec(c *controller.Context, name string, image milvusImage) milvusapi.ComponentSpec {
 	components := c.Instance().Spec.Components
 	spec := milvusapi.ComponentSpec{
-		Image:     image,
-		Version:   version,
+		Image:     image.image,
+		Version:   image.version,
 		Resources: componentResourcesOrNil(components, name),
 		PodLabels: c.PodLabels(name),
 	}
 	applySchedulingPolicy(&spec, components[name].SchedulingPolicy)
 	return spec
+}
+
+// milvusImage is a container image plus the plain semver the operator gates
+// features on; it cannot parse build suffixes such as "-gpu".
+type milvusImage struct {
+	image   string
+	version string
+}
+
+// componentImageResolver picks each component's image: an explicit
+// spec.components.<name>.image wins, then the catalog image of the component's
+// version (pinned, or taken from the version bundle), then the instance-wide
+// fallback.
+type componentImageResolver struct {
+	providerSpec *corev1alpha1.ProviderSpec
+	bundle       *corev1alpha1.VersionBundle
+	components   map[string]corev1alpha1.ComponentSpec
+	fallback     milvusImage
+}
+
+func (r componentImageResolver) resolve(name string) milvusImage {
+	component := r.components[name]
+	resolved := r.fallback
+	version := component.Version
+	if version == "" && r.bundle != nil {
+		version = r.bundle.Components[name]
+	}
+	if version != "" {
+		if image := controller.GetImageForVersion(r.providerSpec, name, version); image != "" {
+			resolved = milvusImage{image: image, version: operatorVersion(version)}
+		}
+	}
+	if component.Image != "" {
+		resolved.image = component.Image
+	}
+	return resolved
+}
+
+func operatorVersion(version string) string {
+	semver, _, _ := strings.Cut(version, "-")
+	return semver
 }
 
 // milvusEngineConfig collects the `configuration` YAML from every component's
@@ -174,11 +215,10 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 		return milvusapi.MilvusSpec{}, err
 	}
 
-	resolvedVersion := instance.Spec.Version
-	if resolvedVersion == "" {
-		if bundle := controller.GetDefaultVersionBundle(providerSpec); bundle != nil {
-			resolvedVersion = bundle.Name
-		}
+	resolvedVersion := controller.EffectiveVersionBundleName(providerSpec, instance)
+	var bundle *corev1alpha1.VersionBundle
+	if resolvedVersion != "" {
+		bundle, _ = controller.ResolveVersionBundle(providerSpec, resolvedVersion)
 	}
 	if resolvedVersion == "" {
 		resolvedVersion = "2.6.11"
@@ -187,6 +227,12 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 	baseImage := "milvusdb/milvus:v2.6.11"
 	if image := resolveMilvusImage(c, common.ComponentStandalone, resolvedVersion); image != "" {
 		baseImage = image
+	}
+	images := componentImageResolver{
+		providerSpec: providerSpec,
+		bundle:       bundle,
+		components:   instance.Spec.Components,
+		fallback:     milvusImage{image: baseImage, version: operatorVersion(resolvedVersion)},
 	}
 
 	mode := milvusapi.MilvusModeStandalone
@@ -198,8 +244,8 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 		Mode: mode,
 		Com: milvusapi.MilvusComponents{
 			ComponentSpec: milvusapi.ComponentSpec{
-				Image:   baseImage,
-				Version: resolvedVersion,
+				Image:   images.fallback.image,
+				Version: images.fallback.version,
 			},
 		},
 	}
@@ -223,7 +269,7 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 		spec.Com.Standalone = &milvusapi.MilvusStandalone{
 			ServiceComponent: milvusapi.ServiceComponent{
 				Component: milvusapi.Component{
-					ComponentSpec: makeMilvusComponentSpec(c, common.ComponentStandalone, baseImage, resolvedVersion),
+					ComponentSpec: makeMilvusComponentSpec(c, common.ComponentStandalone, images.resolve(common.ComponentStandalone)),
 					Replicas:      componentReplicasOrDefault(instance.Spec.Components, common.ComponentStandalone, 1),
 				},
 				Port: 19530,
@@ -231,13 +277,14 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 		}
 		applyServiceExposure(&spec.Com.Standalone.ServiceComponent, instance.Spec.Components[common.ComponentStandalone].Service)
 		spec.Dep = buildDependencies(c, topologyType)
+		spec.Com.ImageUpdateMode = imageUpdateMode(spec.Com)
 		return spec, nil
 	}
 
 	spec.Com.Proxy = &milvusapi.MilvusProxy{
 		ServiceComponent: milvusapi.ServiceComponent{
 			Component: milvusapi.Component{
-				ComponentSpec: makeMilvusComponentSpec(c, common.ComponentProxy, baseImage, resolvedVersion),
+				ComponentSpec: makeMilvusComponentSpec(c, common.ComponentProxy, images.resolve(common.ComponentProxy)),
 				Replicas:      componentReplicasOrDefault(instance.Spec.Components, common.ComponentProxy, 1),
 			},
 			Port: 19530,
@@ -246,13 +293,13 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 	applyServiceExposure(&spec.Com.Proxy.ServiceComponent, instance.Spec.Components[common.ComponentProxy].Service)
 
 	spec.Com.MixCoord = &milvusapi.MilvusMixCoord{Component: milvusapi.Component{
-		ComponentSpec: makeMilvusComponentSpec(c, common.ComponentMixCoord, baseImage, resolvedVersion),
+		ComponentSpec: makeMilvusComponentSpec(c, common.ComponentMixCoord, images.resolve(common.ComponentMixCoord)),
 		Replicas:      componentReplicasOrDefault(instance.Spec.Components, common.ComponentMixCoord, 1),
 	}}
 
 	for _, name := range []string{common.ComponentDataNode, common.ComponentQueryNode, common.ComponentStreaming} {
 		replicas := componentReplicasOrDefault(instance.Spec.Components, name, 1)
-		componentSpec := makeMilvusComponentSpec(c, name, baseImage, resolvedVersion)
+		componentSpec := makeMilvusComponentSpec(c, name, images.resolve(name))
 		switch name {
 		case common.ComponentDataNode:
 			spec.Com.DataNode = &milvusapi.MilvusDataNode{Component: milvusapi.Component{ComponentSpec: componentSpec, Replicas: replicas}}
@@ -263,8 +310,40 @@ func BuildMilvusSpec(c *controller.Context) (milvusapi.MilvusSpec, error) {
 		}
 	}
 	spec.Dep = buildDependencies(c, topologyType)
+	spec.Com.ImageUpdateMode = imageUpdateMode(spec.Com)
 
 	return spec, nil
+}
+
+// imageUpdateMode switches the operator to updating every image at once when
+// components run different images: its ordered rolling upgrade waits for each
+// component to reach the one instance-wide image and would never finish.
+func imageUpdateMode(com milvusapi.MilvusComponents) string {
+	var images []string
+	if com.Standalone != nil {
+		images = append(images, com.Standalone.Image)
+	}
+	if com.Proxy != nil {
+		images = append(images, com.Proxy.Image)
+	}
+	if com.MixCoord != nil {
+		images = append(images, com.MixCoord.Image)
+	}
+	if com.DataNode != nil {
+		images = append(images, com.DataNode.Image)
+	}
+	if com.QueryNode != nil {
+		images = append(images, com.QueryNode.Image)
+	}
+	if com.StreamingNode != nil {
+		images = append(images, com.StreamingNode.Image)
+	}
+	for _, image := range images {
+		if image != com.Image {
+			return milvusapi.ImageUpdateModeAll
+		}
+	}
+	return ""
 }
 
 // Validate checks if the Instance spec is valid.

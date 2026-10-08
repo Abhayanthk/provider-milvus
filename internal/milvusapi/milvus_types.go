@@ -19,6 +19,9 @@ const (
 	MilvusModeStandalone MilvusMode = "standalone"
 )
 
+// ImageUpdateModeAll updates every component's image at once.
+const ImageUpdateModeAll = "all"
+
 // MilvusHealthStatus describes the observed health of the Milvus control plane.
 type MilvusHealthStatus string
 
@@ -95,7 +98,10 @@ type MilvusStreamingNode struct {
 
 // MilvusComponents contains the concrete Milvus deployment components.
 type MilvusComponents struct {
-	ComponentSpec    `json:",inline"`
+	ComponentSpec `json:",inline"`
+	// ImageUpdateMode "all" updates every component's image at once instead of
+	// the default dependency-ordered rolling upgrade.
+	ImageUpdateMode  string               `json:"imageUpdateMode,omitempty"`
 	Standalone       *MilvusStandalone    `json:"standalone,omitempty"`
 	Proxy            *MilvusProxy         `json:"proxy,omitempty"`
 	MixCoord         *MilvusMixCoord      `json:"mixCoord,omitempty"`
